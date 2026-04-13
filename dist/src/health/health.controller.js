@@ -18,6 +18,9 @@ let HealthController = class HealthController {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    root() {
+        return { status: 'ok', service: 'Cuentas Claras API' };
+    }
     async check() {
         const start = Date.now();
         await this.prisma.$queryRaw `SELECT 1`;
@@ -32,6 +35,13 @@ let HealthController = class HealthController {
 exports.HealthController = HealthController;
 __decorate([
     (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Root — basic status' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], HealthController.prototype, "root", null);
+__decorate([
+    (0, common_1.Get)('health'),
     (0, swagger_1.ApiOperation)({ summary: 'Health check — ping backend + Supabase DB' }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -39,7 +49,7 @@ __decorate([
 ], HealthController.prototype, "check", null);
 exports.HealthController = HealthController = __decorate([
     (0, swagger_1.ApiTags)('Health'),
-    (0, common_1.Controller)('health'),
+    (0, common_1.Controller)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], HealthController);
 //# sourceMappingURL=health.controller.js.map
