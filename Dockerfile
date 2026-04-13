@@ -4,6 +4,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci
 COPY . .
+ENV DATABASE_URL="postgresql://placeholder:5432/placeholder"
+ENV DIRECT_URL="postgresql://placeholder:5432/placeholder"
 RUN npx prisma generate
 RUN node --max-old-space-size=512 ./node_modules/.bin/nest build
 
