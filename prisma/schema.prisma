@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- ENUMS ---
+
+enum TripStatus {
+  ACTIVE
+  FINALIZED
+}
+
+enum ParticipationRole {
+  CREATOR
+  SUPERVISOR
+  MEMBER
+}
+
+// --- MODELS ---
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  clerkId   String   @unique @map("clerk_id")
+  name      String
+  email     String   @unique
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participations  Participation[]
+  createdExpenses Expense[]       @relation("ExpenseCreator")
+  expenseDetails  ExpenseDetail[]
+  debtsOwed       Payment[]       @relation("Debtor")
+  debtsReceived   Payment[]       @relation("Creditor")
+
+  @@map("users")
+}
+
+model Trip {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  startDate    DateTime?  @map("start_date") @db.Date
+  endDate      DateTime?  @map("end_date") @db.Date
+  baseCurrency String     @map("base_currency")
+  status       TripStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  participations Participation[]
+  expenses       Expense[]
+  payments       Payment[]
+
+  @@map("trips")
+}
+
+model Participation {
+  id             String            @id @default(uuid()) @db.Uuid
+  userId         String            @map("user_id") @db.Uuid
+  tripId         String            @map("trip_id") @db.Uuid
+  role           ParticipationRole @default(MEMBER)
+  currentBalance Decimal           @default(0) @map("current_balance") @db.Decimal(12, 2)
+  joinedAt       DateTime          @default(now()) @map("joined_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId])
+  @@map("participations")
+}
+
+model Expense {
+  id               String   @id @default(uuid()) @db.Uuid
+  creatorId        String   @map("creator_id") @db.Uuid
+  tripId           String   @map("trip_id") @db.Uuid
+  description      String?
+  originalAmount   Decimal  @map("original_amount") @db.Decimal(12, 2)
+  originalCurrency String   @map("original_currency")
+  exchangeRate     Decimal? @map("exchange_rate") @db.Decimal(12, 6)
+  baseAmount       Decimal? @map("base_amount") @db.Decimal(12, 2)
+  date             DateTime @default(now())
+  category         String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  creator User            @relation("ExpenseCreator", fields: [creatorId], references: [id])
+  trip    Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  details ExpenseDetail[]
+
+  @@index([tripId])
+  @@index([creatorId])
+  @@map("expenses")
+}
+
+model ExpenseDetail {
+  id         String  @id @default(uuid()) @db.Uuid
+  expenseId  String  @map("expense_id") @db.Uuid
+  userId     String  @map("user_id") @db.Uuid
+  amountPaid Decimal @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  amountOwed Decimal @default(0) @map("amount_owed") @db.Decimal(12, 2)
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+  @@map("expense_details")
+}
+
+model Payment {
+  id         String   @id @default(uuid()) @db.Uuid
+  debtorId   String   @map("debtor_id") @db.Uuid
+  creditorId String   @map("creditor_id") @db.Uuid
+  tripId     String   @map("trip_id") @db.Uuid
+  amount     Decimal  @db.Decimal(12, 2)
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  debtor   User @relation("Debtor", fields: [debtorId], references: [id])
+  creditor User @relation("Creditor", fields: [creditorId], references: [id])
+  trip     Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@map("payments")
+}
