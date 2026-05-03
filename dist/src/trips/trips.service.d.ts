@@ -1,11 +1,39 @@
-import { User } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
-import { TripsService } from './trips.service';
-export declare class TripsController {
-    private tripsService;
-    constructor(tripsService: TripsService);
-    findAll(user: User): Promise<({
+export declare class TripsService {
+    private prisma;
+    constructor(prisma: PrismaService);
+    create(userId: string, dto: CreateTripDto): Promise<{
+        participations: ({
+            user: {
+                id: string;
+                email: string;
+                name: string;
+                avatarUrl: string | null;
+            };
+        } & {
+            id: string;
+            userId: string;
+            tripId: string;
+            role: import("@prisma/client").$Enums.ParticipationRole;
+            currentBalance: Prisma.Decimal;
+            joinedAt: Date;
+        })[];
+    } & {
+        id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        baseCurrency: string;
+        status: import("@prisma/client").$Enums.TripStatus;
+        deletedAt: Date | null;
+    }>;
+    findAllForUser(userId: string): Promise<({
         participations: {
             userId: string;
             role: import("@prisma/client").$Enums.ParticipationRole;
@@ -15,8 +43,8 @@ export declare class TripsController {
             expenses: number;
         };
     } & {
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -26,12 +54,12 @@ export declare class TripsController {
         status: import("@prisma/client").$Enums.TripStatus;
         deletedAt: Date | null;
     })[]>;
-    create(user: User, dto: CreateTripDto): Promise<{
+    findOne(userId: string, tripId: string): Promise<{
         participations: ({
             user: {
-                name: string;
                 id: string;
                 email: string;
+                name: string;
                 avatarUrl: string | null;
             };
         } & {
@@ -39,12 +67,12 @@ export declare class TripsController {
             userId: string;
             tripId: string;
             role: import("@prisma/client").$Enums.ParticipationRole;
-            currentBalance: import("@prisma/client/runtime/library").Decimal;
+            currentBalance: Prisma.Decimal;
             joinedAt: Date;
         })[];
     } & {
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -54,12 +82,12 @@ export declare class TripsController {
         status: import("@prisma/client").$Enums.TripStatus;
         deletedAt: Date | null;
     }>;
-    findOne(user: User, id: string): Promise<{
+    update(userId: string, tripId: string, dto: UpdateTripDto): Promise<{
         participations: ({
             user: {
-                name: string;
                 id: string;
                 email: string;
+                name: string;
                 avatarUrl: string | null;
             };
         } & {
@@ -67,12 +95,12 @@ export declare class TripsController {
             userId: string;
             tripId: string;
             role: import("@prisma/client").$Enums.ParticipationRole;
-            currentBalance: import("@prisma/client/runtime/library").Decimal;
+            currentBalance: Prisma.Decimal;
             joinedAt: Date;
         })[];
     } & {
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -82,33 +110,6 @@ export declare class TripsController {
         status: import("@prisma/client").$Enums.TripStatus;
         deletedAt: Date | null;
     }>;
-    update(user: User, id: string, dto: UpdateTripDto): Promise<{
-        participations: ({
-            user: {
-                name: string;
-                id: string;
-                email: string;
-                avatarUrl: string | null;
-            };
-        } & {
-            id: string;
-            userId: string;
-            tripId: string;
-            role: import("@prisma/client").$Enums.ParticipationRole;
-            currentBalance: import("@prisma/client/runtime/library").Decimal;
-            joinedAt: Date;
-        })[];
-    } & {
-        name: string;
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        description: string | null;
-        startDate: Date | null;
-        endDate: Date | null;
-        baseCurrency: string;
-        status: import("@prisma/client").$Enums.TripStatus;
-        deletedAt: Date | null;
-    }>;
-    remove(user: User, id: string): Promise<void>;
+    remove(userId: string, tripId: string): Promise<void>;
+    private assertIsCreator;
 }
