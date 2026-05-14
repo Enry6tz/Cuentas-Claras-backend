@@ -92,15 +92,15 @@ erDiagram
 ### 1. **User** (usuarios)
 Almacena información de los usuarios del sistema.
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---|---|
-| id | UUID | PK | Identificador único |
-| clerkId | String | UNIQUE | ID de autenticación de Clerk |
-| name | String | NOT NULL | Nombre del usuario |
-| email | String | UNIQUE | Email del usuario |
-| avatarUrl | String | NULL | URL del avatar |
-| createdAt | DateTime | DEFAULT NOW() | Fecha de creación |
-| updatedAt | DateTime | AUTO UPDATE | Fecha de última actualización |
+| Campo | Tipo | Valor por Defecto | Restricciones | Descripción |
+|-------|------|---|---|---|
+| id | UUID | - | PK | Identificador único |
+| clerkId | String | - | UNIQUE, NOT NULL | ID de autenticación de Clerk |
+| name | String | - | NOT NULL | Nombre del usuario |
+| email | String | - | UNIQUE, NOT NULL | Email del usuario |
+| avatarUrl | String | - | - | URL del avatar |
+| createdAt | DateTime | NOW() | NOT NULL | Fecha de creación |
+| updatedAt | DateTime | NOW() | NOT NULL | Fecha de última actualización |
 
 **Relaciones:**
 - Participa en múltiples Viajes (vía `Participation`)
@@ -114,18 +114,18 @@ Almacena información de los usuarios del sistema.
 ### 2. **Trip** (viajes)
 Representa un viaje donde se comparten gastos.
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---|---|
-| id | UUID | PK | Identificador único |
-| name | String | NOT NULL | Nombre del viaje |
-| description | String | NULL | Descripción del viaje |
-| startDate | Date | NULL | Fecha de inicio |
-| endDate | Date | NULL | Fecha de fin |
-| baseCurrency | String | NOT NULL | Moneda base del viaje |
-| status | TripStatus | DEFAULT ACTIVE | Estado: ACTIVE \| FINALIZED |
-| createdAt | DateTime | DEFAULT NOW() | Fecha de creación |
-| updatedAt | DateTime | AUTO UPDATE | Fecha de última actualización |
-| deletedAt | DateTime | NULL, INDEX | Soft delete |
+| Campo | Tipo | Valor por Defecto | Restricciones | Descripción |
+|-------|------|---|---|---|
+| id | UUID | - | PK | Identificador único |
+| name | String | - | NOT NULL | Nombre del viaje |
+| description | String | - | - | Descripción del viaje |
+| startDate | Date | - | - | Fecha de inicio |
+| endDate | Date | - | - | Fecha de fin |
+| baseCurrency | String | - | NOT NULL | Moneda base del viaje |
+| status | TripStatus | ACTIVE | NOT NULL | Estado: ACTIVE \| FINALIZED |
+| createdAt | DateTime | NOW() | NOT NULL | Fecha de creación |
+| updatedAt | DateTime | NOW() | NOT NULL | Fecha de última actualización |
+| deletedAt | DateTime | - | INDEX | Soft delete |
 
 **Relaciones:**
 - Tiene múltiples Participantes (`participations`)
@@ -137,14 +137,14 @@ Representa un viaje donde se comparten gastos.
 ### 3. **Participation** (participaciones)
 Tabla de unión que registra la participación de usuarios en viajes.
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---|---|
-| id | UUID | PK | Identificador único |
-| userId | UUID | FK, NOT NULL | Usuario participante |
-| tripId | UUID | FK, NOT NULL | Viaje |
-| role | ParticipationRole | DEFAULT MEMBER | Rol: CREATOR \| SUPERVISOR \| MEMBER |
-| currentBalance | Decimal(12,2) | DEFAULT 0 | Saldo actual del usuario en el viaje |
-| joinedAt | DateTime | DEFAULT NOW() | Fecha de unión |
+| Campo | Tipo | Valor por Defecto | Restricciones | Descripción |
+|-------|------|---|---|---|
+| id | UUID | - | PK | Identificador único |
+| userId | UUID | - | FK, NOT NULL | Usuario participante |
+| tripId | UUID | - | FK, NOT NULL | Viaje |
+| role | ParticipationRole | MEMBER | NOT NULL | Rol: CREATOR \| SUPERVISOR \| MEMBER |
+| currentBalance | Decimal(12,2) | 0 | NOT NULL | Saldo actual del usuario en el viaje |
+| joinedAt | DateTime | NOW() | NOT NULL | Fecha de unión |
 
 **Restricciones:**
 - UNIQUE(userId, tripId): Un usuario solo puede participar una vez por viaje
@@ -160,22 +160,22 @@ Tabla de unión que registra la participación de usuarios en viajes.
 ### 4. **Expense** (gastos)
 Registra gastos compartidos en un viaje.
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---|---|
-| id | UUID | PK | Identificador único |
-| creatorId | UUID | FK, NOT NULL | Usuario que registra el gasto |
-| tripId | UUID | FK, NOT NULL | Viaje asociado |
-| description | String | NULL | Descripción del gasto |
-| originalAmount | Decimal(12,2) | NOT NULL | Monto original |
-| originalCurrency | String | NOT NULL | Moneda original |
-| exchangeRate | Decimal(12,6) | NULL | Tasa de cambio aplicada |
-| baseAmount | Decimal(12,2) | NULL | Monto convertido a moneda base |
-| splitType | ExpenseSplitType | DEFAULT EQUAL | Tipo de división: EQUAL \| EXACT \| PERCENT |
-| date | DateTime | DEFAULT NOW() | Fecha del gasto |
-| category | String | NULL | Categoría del gasto |
-| createdAt | DateTime | DEFAULT NOW() | Fecha de creación |
-| updatedAt | DateTime | AUTO UPDATE | Fecha de última actualización |
-| deletedAt | DateTime | NULL, INDEX | Soft delete |
+| Campo | Tipo | Valor por Defecto | Restricciones | Descripción |
+|-------|------|---|---|---|
+| id | UUID | - | PK | Identificador único |
+| creatorId | UUID | - | FK, NOT NULL | Usuario que registra el gasto |
+| tripId | UUID | - | FK, NOT NULL | Viaje asociado |
+| description | String | - | - | Descripción del gasto |
+| originalAmount | Decimal(12,2) | - | NOT NULL | Monto original |
+| originalCurrency | String | - | NOT NULL | Moneda original |
+| exchangeRate | Decimal(12,6) | - | - | Tasa de cambio aplicada |
+| baseAmount | Decimal(12,2) | - | - | Monto convertido a moneda base |
+| splitType | ExpenseSplitType | EQUAL | NOT NULL | Tipo de división: EQUAL \| EXACT \| PERCENT |
+| date | DateTime | NOW() | NOT NULL | Fecha del gasto |
+| category | String | - | - | Categoría del gasto |
+| createdAt | DateTime | NOW() | NOT NULL | Fecha de creación |
+| updatedAt | DateTime | NOW() | NOT NULL | Fecha de última actualización |
+| deletedAt | DateTime | - | INDEX | Soft delete |
 
 **Restricciones:**
 - FK creatorId → User
@@ -192,13 +192,13 @@ Registra gastos compartidos en un viaje.
 ### 5. **ExpenseDetail** (detalles de gasto)
 Tabla de desglose que especifica cuánto debe pagar/pagó cada usuario en un gasto.
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---|---|
-| id | UUID | PK | Identificador único |
-| expenseId | UUID | FK, NOT NULL | Gasto asociado |
-| userId | UUID | FK, NOT NULL | Usuario |
-| amountPaid | Decimal(12,2) | DEFAULT 0 | Monto que pagó |
-| amountOwed | Decimal(12,2) | DEFAULT 0 | Monto que debe |
+| Campo | Tipo | Valor por Defecto | Restricciones | Descripción |
+|-------|------|---|---|---|
+| id | UUID | - | PK | Identificador único |
+| expenseId | UUID | - | FK, NOT NULL | Gasto asociado |
+| userId | UUID | - | FK, NOT NULL | Usuario |
+| amountPaid | Decimal(12,2) | 0 | NOT NULL | Monto que pagó |
+| amountOwed | Decimal(12,2) | 0 | NOT NULL | Monto que debe |
 
 **Restricciones:**
 - UNIQUE(expenseId, userId): Un usuario solo aparece una vez por gasto
@@ -214,17 +214,17 @@ Tabla de desglose que especifica cuánto debe pagar/pagó cada usuario en un gas
 ### 6. **Payment** (pagos)
 Registra pagos entre usuarios para liquidar deudas.
 
-| Campo | Tipo | Restricciones | Descripción |
-|-------|------|---|---|
-| id | UUID | PK | Identificador único |
-| debtorId | UUID | FK, NOT NULL | Usuario que debe |
-| creditorId | UUID | FK, NOT NULL | Usuario que recibe |
-| tripId | UUID | FK, NOT NULL | Viaje asociado |
-| amount | Decimal(12,2) | NOT NULL | Monto pagado |
-| note | String | NULL | Nota o referencia |
-| date | DateTime | DEFAULT NOW() | Fecha del pago |
-| createdAt | DateTime | DEFAULT NOW() | Fecha de creación |
-| deletedAt | DateTime | NULL, INDEX | Soft delete |
+| Campo | Tipo | Valor por Defecto | Restricciones | Descripción |
+|-------|------|---|---|---|
+| id | UUID | - | PK | Identificador único |
+| debtorId | UUID | - | FK, NOT NULL | Usuario que debe |
+| creditorId | UUID | - | FK, NOT NULL | Usuario que recibe |
+| tripId | UUID | - | FK, NOT NULL | Viaje asociado |
+| amount | Decimal(12,2) | - | NOT NULL | Monto pagado |
+| note | String | - | - | Nota o referencia |
+| date | DateTime | NOW() | NOT NULL | Fecha del pago |
+| createdAt | DateTime | NOW() | NOT NULL | Fecha de creación |
+| deletedAt | DateTime | - | INDEX | Soft delete |
 
 **Restricciones:**
 - FK debtorId → User
