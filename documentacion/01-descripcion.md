@@ -7,7 +7,6 @@
 |---|---|
 | Orellano, Rocio | 138873 |
 | Paoloni, Rocco | 141851 |
-| Maslein, Juan | 127510 |
 | Robaina, Malena | 136259 |
 | Rojas Fritz, Camila | 134332 |
 | Seitz, Enrique | 138901 |
@@ -26,6 +25,73 @@ El sistema está pensado para múltiples usuarios interactuando sobre viajes com
 ---
 
 ## Modelo de Dominio
+
+```mermaid
+erDiagram
+    Usuario {
+        uuid id PK
+        varchar nombre
+        varchar email
+        varchar contrasena
+    }
+
+    Viaje {
+        uuid id PK
+        varchar nombre
+        date fecha_inicio
+        date fecha_fin
+        varchar moneda_base
+        enum estado
+    }
+
+    Participacion {
+        uuid id PK
+        uuid usuario_id FK
+        uuid viaje_id FK
+        enum rol
+        decimal balance_actual
+    }
+
+    Gasto {
+        uuid id PK
+        uuid creador_id FK
+        uuid viaje_id FK
+        varchar descripcion
+        decimal monto_original
+        varchar moneda_original
+        decimal tasa_cambio
+        decimal monto_moneda_base
+        datetime fecha
+        varchar categoria
+    }
+
+    Detalle_Gasto {
+        uuid id PK
+        uuid usuario_id FK
+        decimal monto_pagado
+        decimal monto_deuda
+        uuid gasto_id FK
+    }
+
+    Pago {
+        uuid id PK
+        uuid deudor_id FK
+        uuid acreedor_id FK
+        decimal monto
+        datetime fecha
+        uuid viaje_id FK
+    }
+
+    Usuario ||--o{ Participacion : "participa en"
+    Viaje ||--o{ Participacion : "contiene"
+    Usuario ||--o{ Gasto : "crea"
+    Viaje ||--o{ Gasto : "agrupa"
+    Gasto ||--o{ Detalle_Gasto : "se divide en"
+    Usuario ||--o{ Detalle_Gasto : "recibe"
+    Usuario ||--o{ Pago : "realiza (deudor)"
+    Usuario ||--o{ Pago : "recibe (acreedor)"
+    Viaje ||--o{ Pago : "contiene"
+```
 
 ### Entidades principales
 

@@ -7,6 +7,26 @@
 El diagrama representa al sistema como una "caja negra" central que interactúa con tres tipos de **perfiles de usuario autenticados** y una entidad externa automatizada.
 Su objetivo principal es centralizar la gestión financiera de los viajes, permitiendo el registro, la consulta y la administración de deudas y pagos entre participantes.
 
+```mermaid
+graph LR
+    subgraph USUARIO["👤 USUARIO"]
+        Supervisor["Supervisor"]
+        Miembro["Miembro"]
+        Administrador["Administrador"]
+    end
+
+    Sistema["💲 Sistema\nCuentas Claras"]
+    ExchangeAPI["Exchange Rate\nAPI"]
+    Clerk["Clerk Identity\nProvider"]
+
+    Supervisor -->|"visualiza gastos\ny balances"| Sistema
+    Miembro -->|"registra gastos,\nconsulta balances"| Sistema
+    Administrador -->|"gestiona viajes\ny participantes"| Sistema
+
+    Sistema -->|"obtención de tasas\nde cambio"| ExchangeAPI
+    Sistema -->|"valida JWT /\nrecibe webhooks"| Clerk
+```
+
 El sistema identifica 5 entidades principales que interactúan con él:
 
 ### Usuarios
@@ -23,6 +43,36 @@ El sistema identifica 5 entidades principales que interactúan con él:
 ---
 
 ## Diagrama de Contenedores
+
+```mermaid
+graph LR
+    Usuario["👤 Usuario"]
+
+    subgraph SISTEMA["SISTEMA DE GASTOS"]
+        subgraph WEB["WEB APPLICATION"]
+            Pagina["Página de\nAplicación"]
+            React["React"]
+        end
+
+        subgraph BACKEND["BACKEND"]
+            NestJS["NestJS"]
+        end
+
+        subgraph DATABASE["DATABASE"]
+            BaseDatos["Base de Datos\nPostgreSQL"]
+        end
+    end
+
+    ClerkGuard["ClerkGuard"]
+    ExchangeAPI["Exchange Rate\nAPI"]
+
+    Usuario -->|"usa via browser"| WEB
+    WEB -->|"JSON/HTTPS"| NestJS
+    NestJS -->|"lee y escribe"| BaseDatos
+    NestJS -->|"obtiene tasas\nde cambio"| ExchangeAPI
+    WEB -->|"autenticacion"| ClerkGuard
+    NestJS -->|"autenticacion"| ClerkGuard
+```
 
 ### Web Application (Frontend)
 
@@ -49,6 +99,80 @@ El sistema identifica 5 entidades principales que interactúan con él:
 ---
 
 ## Diagrama de Componentes
+
+```mermaid
+graph LR
+    AplicacionWeb["Aplicación Web\nReact/Next.js"]
+
+    subgraph BACKEND["API BACKEND (NestJS)"]
+        subgraph MODULOS["CAPA MÓDULOS"]
+            BalanceModule["Balance Module"]
+            TripModule["Trip Module"]
+            UserModule["User Module"]
+            ExpenseModule["Expense Module"]
+            PaymentModule["Payment Module"]
+            AuthModule["Auth Module"]
+        end
+
+        subgraph CONTROLADORES["CAPA CONTROLADORES"]
+            BalanceCtrl["Balance Controller"]
+            TripCtrl["Trip Controller"]
+            UserCtrl["User Controller"]
+            ExpenseCtrl["Expense Controller"]
+            PaymentCtrl["Payment Controller"]
+            AuthCtrl["Auth Controller"]
+        end
+
+        subgraph SERVICIOS["CAPA SERVICIOS"]
+            BalanceSvc["Balance Service"]
+            TripSvc["Trip Service"]
+            UserSvc["User Service"]
+            ExpenseSvc["Expense Service"]
+            CurrencySvc["Currency Service"]
+            PaymentSvc["Payment Service"]
+            AuthSvc["Auth Service"]
+        end
+
+        subgraph TRANSVERSAL["CAPA TRANSVERSAL"]
+            Prisma["PrismaService\nORM global"]
+            ClerkGuard["ClerkAuthGuard"]
+        end
+    end
+
+    BaseDatos["Base de Datos\nPostgreSQL"]
+    ExchangeAPI["Exchange Rate\nAPI"]
+    Clerk["Clerk"]
+
+    AplicacionWeb -->|"JSON/HTTPS"| CONTROLADORES
+
+    BalanceModule -->|"Declara"| BalanceCtrl
+    TripModule -->|"Declara"| TripCtrl
+    UserModule -->|"Declara"| UserCtrl
+    ExpenseModule -->|"Declara"| ExpenseCtrl
+    PaymentModule -->|"Declara"| PaymentCtrl
+    AuthModule -->|"Declara"| AuthCtrl
+
+    BalanceCtrl -->|"Inyecta"| BalanceSvc
+    TripCtrl -->|"Inyecta"| TripSvc
+    UserCtrl -->|"Inyecta"| UserSvc
+    ExpenseCtrl -->|"Inyecta"| ExpenseSvc
+    ExpenseCtrl -->|"Inyecta"| CurrencySvc
+    PaymentCtrl -->|"Inyecta"| PaymentSvc
+    AuthCtrl -->|"Inyecta"| AuthSvc
+
+    BalanceSvc -->|"Usa"| Prisma
+    TripSvc -->|"Usa"| Prisma
+    UserSvc -->|"Usa"| Prisma
+    ExpenseSvc -->|"Usa"| Prisma
+    PaymentSvc -->|"Usa"| Prisma
+    AuthSvc -->|"Usa"| Prisma
+
+    CurrencySvc -->|"Usa"| ExchangeAPI
+    ClerkGuard -->|"valida"| Clerk
+    AuthSvc -->|"Usa"| ClerkGuard
+
+    Prisma -->|"SQL"| BaseDatos
+```
 
 El diagrama detalla la estructura interna del API Backend construido en NestJS y cómo interactúa con los clientes y proveedores externos.
 
