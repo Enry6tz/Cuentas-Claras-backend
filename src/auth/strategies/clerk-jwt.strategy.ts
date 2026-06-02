@@ -35,6 +35,7 @@ export class ClerkJwtStrategy extends PassportStrategy(Strategy, 'clerk-jwt') {
     sub: string;
     publicMetadata?: { admin?: boolean };
     public_metadata?: { admin?: boolean };
+    'public-metadata'?: { admin?: boolean };
   }): Promise<User & { isAdmin: boolean }> {
     let user = await this.prisma.user.findUnique({
       where: { clerkId: payload.sub },
@@ -61,7 +62,8 @@ export class ClerkJwtStrategy extends PassportStrategy(Strategy, 'clerk-jwt') {
 
     const isAdmin =
       payload.publicMetadata?.admin === true ||
-      payload.public_metadata?.admin === true;
+      payload.public_metadata?.admin === true ||
+      payload['public-metadata']?.admin === true;
 
     return { ...user, isAdmin };
   }
