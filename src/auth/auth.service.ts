@@ -9,7 +9,7 @@ export class AuthService {
     clerkId: string;
     email: string;
     name: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
   }) {
     return this.prisma.user.upsert({
       where: { clerkId: data.clerkId },
