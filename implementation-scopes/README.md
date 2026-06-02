@@ -7,7 +7,7 @@ Esta carpeta reparte el trabajo entre **dos grupos** para que implementen sin pi
 ## Usuarios de prueba
 Hay 3 usuarios de prueba y las credenciales son las siguientes
 email: userx_test_clerk@gmail.com (x es 1, 2 o 3)
-contraseña: test123
+contraseña: arqui1234#
 
 ## Altitud de estos documentos
 
