@@ -8,7 +8,11 @@ import { UsersModule } from './users/users.module';
 import { TripsModule } from './trips/trips.module';
 import { ExpenseDetailsModule } from './expense-details/expense-details.module';
 import { PaymentsModule } from './payments/payments.module';
+import { CurrencyModule } from './currency/currency.module';
+import { BalancesModule } from './balances/balances.module';
 import { HealthModule } from './health/health.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { AdminModule } from './admin/admin.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -25,7 +29,11 @@ import configuration from './config/configuration';
     TripsModule,
     ExpenseDetailsModule,
     PaymentsModule,
+    CurrencyModule,
+    BalancesModule,
     HealthModule,
+    DashboardModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

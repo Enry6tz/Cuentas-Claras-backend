@@ -8,7 +8,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBadRequestResponse,
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { Webhook } from 'svix';
 import { AuthService } from './auth.service';
@@ -24,7 +30,14 @@ export class AuthController {
   ) {}
 
   @Post('webhook')
-  @ApiOperation({ summary: 'Handle Clerk webhook events' })
+  @ApiOperation({
+    summary: 'Handle Clerk webhook events',
+    description:
+      'Endpoint público para recibir webhooks de Clerk (user.created, user.updated, user.deleted). Verificado con Svix.',
+  })
+  @ApiOkResponse({ description: 'Webhook processed successfully.' })
+  @ApiBadRequestResponse({ description: 'Missing svix headers or invalid signature.' })
+  @ApiInternalServerErrorResponse({ description: 'Webhook secret not configured or sync failed.' })
   async handleWebhook(
     @RawBody() rawBody: Buffer,
     @Req() req: Request,
