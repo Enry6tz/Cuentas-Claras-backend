@@ -4,6 +4,11 @@ App de gastos compartidos. Backend **NestJS + Prisma + PostgreSQL** (`Cuentas-Cl
 
 Esta carpeta reparte el trabajo entre **dos grupos** para que implementen sin pisarse. Cada feature tiene su propio `.md` con **alcance, requerimientos y restricciones**. El detalle fino (flujos, DTOs, endpoints definitivos) lo cierra cada grupo en su **plan mode por feature** al momento de implementar.
 
+## Usuarios de prueba
+Hay 3 usuarios de prueba y las credenciales son las siguientes
+email: userx_test_clerk@gmail.com (x es 1, 2 o 3)
+contraseña: test123
+
 ## Altitud de estos documentos
 
 Estos docs **acotan**, no implementan. Fijan lo que tiene que quedar firme (reglas de negocio, permisos por rol, decisiones de arquitectura) y dejan **orientativos** los endpoints y flujos. Cuando un grupo arranque una feature:
