@@ -31,7 +31,12 @@ export class ClerkJwtStrategy extends PassportStrategy(Strategy, 'clerk-jwt') {
     });
   }
 
-  async validate(payload: { sub: string }): Promise<User> {
+  async validate(payload: {
+    sub: string;
+    publicMetadata?: { admin?: boolean };
+    public_metadata?: { admin?: boolean };
+    'public-metadata'?: { admin?: boolean };
+  }): Promise<User & { isAdmin: boolean }> {
     let user = await this.prisma.user.findUnique({
       where: { clerkId: payload.sub },
     });
@@ -55,7 +60,12 @@ export class ClerkJwtStrategy extends PassportStrategy(Strategy, 'clerk-jwt') {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    const isAdmin =
+      payload.publicMetadata?.admin === true ||
+      payload.public_metadata?.admin === true ||
+      payload['public-metadata']?.admin === true;
+
+    return { ...user, isAdmin };
   }
 
   /** Trae los datos del usuario desde Clerk y hace upsert en la BD. */
