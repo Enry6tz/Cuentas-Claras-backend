@@ -121,11 +121,13 @@ export class BalancesService {
     }
 
     for (const p of payments) {
+      // Un pago SALDA deuda: el deudor (saldo negativo) sube hacia 0 al pagar,
+      // y el acreedor (saldo positivo) baja hacia 0 al cobrar.
       const debtorBal = balanceMap.get(p.debtorId) ?? 0;
-      balanceMap.set(p.debtorId, debtorBal - Number(p.amount));
+      balanceMap.set(p.debtorId, debtorBal + Number(p.amount));
 
       const creditorBal = balanceMap.get(p.creditorId) ?? 0;
-      balanceMap.set(p.creditorId, creditorBal + Number(p.amount));
+      balanceMap.set(p.creditorId, creditorBal - Number(p.amount));
     }
 
     for (const [userId, balance] of balanceMap) {
