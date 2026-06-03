@@ -79,10 +79,25 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "diagnostics": {
+            "ignoreCodes": [
+              151002
+            ]
+          }
+        }
+      ]
     },
+    "setupFilesAfterEnv": [
+      "<rootDir>/test-setup.ts"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
+    ],
+    "coveragePathIgnorePatterns": [
+      "test-setup.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
