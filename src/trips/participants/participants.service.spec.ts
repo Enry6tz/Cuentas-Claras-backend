@@ -124,7 +124,17 @@ describe('ParticipantsService', () => {
   describe('addParticipant', () => {
     beforeEach(() => {
       mockPrisma.trip.findUnique.mockResolvedValue(mockTrip);
-      mockPrisma.participation.findUnique.mockResolvedValue(null);
+      // El servicio busca la participación por usuario en dos momentos:
+      //   1) assertIsCreator(actor) → debe ver al CREATOR.
+      //   2) chequeo de "ya participa" sobre el usuario a agregar → null.
+      // Por eso devolvemos según el userId consultado.
+      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
+        const uid = where.userId_tripId.userId;
+        if (uid === 'user-creator') {
+          return Promise.resolve(mockCreatorParticipation);
+        }
+        return Promise.resolve(null);
+      });
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
     });
 
@@ -174,13 +184,20 @@ describe('ParticipantsService', () => {
     });
 
     it('should throw ConflictException if user is already a participant', async () => {
-      mockPrisma.participation.findUnique.mockResolvedValueOnce({
-        ...mockMemberParticipation,
-        userId: 'user-creator',
+      // El actor es CREATOR (puede agregar) pero el usuario a agregar ya participa.
+      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
+        const uid = where.userId_tripId.userId;
+        if (uid === 'user-creator') {
+          return Promise.resolve(mockCreatorParticipation);
+        }
+        if (uid === 'user-member') {
+          return Promise.resolve(mockMemberParticipation);
+        }
+        return Promise.resolve(null);
       });
 
       await expect(
-        service.addParticipant('trip-1', 'user-creator', 'user-creator'),
+        service.addParticipant('trip-1', 'user-creator', 'user-member'),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -199,9 +216,17 @@ describe('ParticipantsService', () => {
   describe('changeRole', () => {
     beforeEach(() => {
       mockPrisma.trip.findUnique.mockResolvedValue(mockTrip);
-      mockPrisma.participation.findUnique.mockResolvedValue(
-        mockMemberParticipation,
-      );
+      // assertIsCreator(actor) ve al CREATOR; el usuario objetivo es un MEMBER.
+      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
+        const uid = where.userId_tripId.userId;
+        if (uid === 'user-creator') {
+          return Promise.resolve(mockCreatorParticipation);
+        }
+        if (uid === 'user-member') {
+          return Promise.resolve(mockMemberParticipation);
+        }
+        return Promise.resolve(null);
+      });
     });
 
     it('should change a participant role', async () => {
@@ -248,7 +273,14 @@ describe('ParticipantsService', () => {
     });
 
     it('should throw NotFoundException if target user is not a participant', async () => {
-      mockPrisma.participation.findUnique.mockResolvedValue(null);
+      // El actor sigue siendo CREATOR; el objetivo 'nonexistent' no participa.
+      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
+        const uid = where.userId_tripId.userId;
+        if (uid === 'user-creator') {
+          return Promise.resolve(mockCreatorParticipation);
+        }
+        return Promise.resolve(null);
+      });
 
       await expect(
         service.changeRole(
@@ -264,9 +296,17 @@ describe('ParticipantsService', () => {
   describe('removeParticipant', () => {
     beforeEach(() => {
       mockPrisma.trip.findUnique.mockResolvedValue(mockTrip);
-      mockPrisma.participation.findUnique.mockResolvedValue(
-        mockMemberParticipation,
-      );
+      // assertIsCreator(actor) ve al CREATOR; el usuario objetivo es un MEMBER.
+      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
+        const uid = where.userId_tripId.userId;
+        if (uid === 'user-creator') {
+          return Promise.resolve(mockCreatorParticipation);
+        }
+        if (uid === 'user-member') {
+          return Promise.resolve(mockMemberParticipation);
+        }
+        return Promise.resolve(null);
+      });
       mockPrisma.expenseDetail.findMany.mockResolvedValue([]);
       mockPrisma.payment.findMany.mockResolvedValue([]);
       mockPrisma.participation.delete.mockResolvedValue(mockMemberParticipation);

@@ -179,10 +179,12 @@ export class ParticipantsService {
       new Decimal(0),
     );
 
-    const fromPayments = paymentsAsCreditor
+    // Un pago SALDA deuda: pagar (ser deudor) sube el saldo hacia 0; cobrar
+    // (ser acreedor) lo baja hacia 0. Por eso deudor suma y acreedor resta.
+    const fromPayments = paymentsAsDebtor
       .reduce((sum, p) => sum.add(p.amount), new Decimal(0))
       .sub(
-        paymentsAsDebtor.reduce((sum, p) => sum.add(p.amount), new Decimal(0)),
+        paymentsAsCreditor.reduce((sum, p) => sum.add(p.amount), new Decimal(0)),
       );
 
     return fromExpenses.add(fromPayments);
