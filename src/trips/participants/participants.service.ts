@@ -26,36 +26,6 @@ export class ParticipantsService {
     });
   }
 
-  async addParticipant(tripId: string, actorId: string, userId: string) {
-    await this.assertTripExists(tripId);
-    await this.assertTripActive(tripId);
-    await this.assertIsCreator(tripId, actorId);
-
-    const userExists = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!userExists) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    const existingParticipation =
-      await this.prisma.participation.findUnique({
-        where: { userId_tripId: { userId, tripId } },
-      });
-    if (existingParticipation) {
-      throw new ConflictException('El usuario ya participa en este viaje');
-    }
-
-    return this.prisma.participation.create({
-      data: { userId, tripId, role: ParticipationRole.MEMBER },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-      },
-    });
-  }
-
   async changeRole(
     tripId: string,
     actorId: string,
