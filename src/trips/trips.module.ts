@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 import { ParticipantsModule } from './participants/participants.module';
+import { InvitationsModule } from './invitations/invitations.module';
 
 /**
  * Cada feature en NestJS se encapsula en un Module.
@@ -19,7 +20,7 @@ import { ParticipantsModule } from './participants/participants.module';
  * disponible en todo el app sin tener que importarlo modulo por modulo.
  */
 @Module({
-  imports: [ParticipantsModule],
+  imports: [ParticipantsModule, InvitationsModule],
   controllers: [TripsController],
   providers: [TripsService],
   exports: [TripsService],

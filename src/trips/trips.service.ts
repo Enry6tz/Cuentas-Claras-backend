@@ -53,6 +53,8 @@ export class TripsService {
           startDate: dto.startDate ? new Date(dto.startDate) : null,
           endDate: dto.endDate ? new Date(dto.endDate) : null,
           baseCurrency: dto.baseCurrency,
+          iconId: dto.iconId,
+          colorId: dto.colorId,
           // status arranca en ACTIVE por default del schema, no hace falta setearlo.
         },
       });
@@ -174,6 +176,8 @@ export class TripsService {
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.baseCurrency !== undefined) data.baseCurrency = dto.baseCurrency;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.iconId !== undefined) data.iconId = dto.iconId;
+    if (dto.colorId !== undefined) data.colorId = dto.colorId;
     if (dto.startDate !== undefined) {
       data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     }

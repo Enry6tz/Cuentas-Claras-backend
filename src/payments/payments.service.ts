@@ -8,6 +8,14 @@ import { ParticipationRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BalancesService } from '../balances/balances.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { QueryMyPaymentsDto } from './dto/query-my-payments.dto';
+
+const PUBLIC_USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+} as const;
 
 @Injectable()
 export class PaymentsService {
@@ -84,6 +92,57 @@ export class PaymentsService {
       },
       orderBy: { date: 'desc' },
     });
+  }
+
+  /**
+   * Lista paginada de pagos del usuario a través de TODOS sus viajes (aquellos
+   * donde participa). Filtros por viaje, rol (deudor/acreedor), texto y rango de
+   * fechas. Pensado para la página global de Pagos.
+   */
+  async findAllForUser(userId: string, query: QueryMyPaymentsDto) {
+    const { page, limit } = query;
+
+    const where: Prisma.PaymentWhereInput = {
+      deletedAt: null,
+      trip: {
+        deletedAt: null,
+        participations: { some: { userId } },
+      },
+    };
+
+    if (query.tripId) where.tripId = query.tripId;
+    if (query.role === 'debtor') where.debtorId = userId;
+    else if (query.role === 'creditor') where.creditorId = userId;
+    if (query.q) {
+      where.note = { contains: query.q, mode: 'insensitive' };
+    }
+    if (query.from || query.to) {
+      const date: Prisma.DateTimeFilter = {};
+      if (query.from) date.gte = new Date(query.from);
+      if (query.to) {
+        const end = new Date(query.to);
+        end.setHours(23, 59, 59, 999);
+        date.lte = end;
+      }
+      where.date = date;
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        include: {
+          debtor: { select: PUBLIC_USER_SELECT },
+          creditor: { select: PUBLIC_USER_SELECT },
+          trip: { select: { id: true, name: true, baseCurrency: true } },
+        },
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return { items, total, page, limit, hasMore: page * limit < total };
   }
 
   async remove(userId: string, tripId: string, paymentId: string) {

@@ -30,6 +30,7 @@ describe('PaymentsService', () => {
         create: jest.fn().mockResolvedValue({ id: 'pay-1' }),
         findFirst: jest.fn(),
         findMany: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
       },
       $transaction: jest.fn((cb) => cb(prisma)),
@@ -150,6 +151,60 @@ describe('PaymentsService', () => {
         ForbiddenException,
       );
       expect(prisma.payment.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAllForUser', () => {
+    it('devuelve la página con metadata y filtra por viajes del usuario', async () => {
+      prisma.payment.findMany.mockResolvedValue([{ id: 'pay-1' }]);
+      prisma.payment.count.mockResolvedValue(1);
+
+      const result = await service.findAllForUser('user-1', {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result).toEqual({
+        items: [{ id: 'pay-1' }],
+        total: 1,
+        page: 1,
+        limit: 10,
+        hasMore: false,
+      });
+
+      const args = prisma.payment.findMany.mock.calls[0][0];
+      expect(args.where.deletedAt).toBeNull();
+      expect(args.where.trip.participations.some.userId).toBe('user-1');
+    });
+
+    it('role=debtor acota a pagos donde el usuario es deudor', async () => {
+      prisma.payment.findMany.mockResolvedValue([]);
+      prisma.payment.count.mockResolvedValue(0);
+
+      await service.findAllForUser('user-1', {
+        page: 1,
+        limit: 10,
+        role: 'debtor',
+      });
+
+      const args = prisma.payment.findMany.mock.calls[0][0];
+      expect(args.where.debtorId).toBe('user-1');
+      expect(args.where.creditorId).toBeUndefined();
+    });
+
+    it('role=creditor acota a pagos donde el usuario es acreedor', async () => {
+      prisma.payment.findMany.mockResolvedValue([]);
+      prisma.payment.count.mockResolvedValue(0);
+
+      await service.findAllForUser('user-1', {
+        page: 1,
+        limit: 10,
+        role: 'creditor',
+      });
+
+      const args = prisma.payment.findMany.mock.calls[0][0];
+      expect(args.where.creditorId).toBe('user-1');
+      expect(args.where.debtorId).toBeUndefined();
     });
   });
 });

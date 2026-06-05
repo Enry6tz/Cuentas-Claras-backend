@@ -101,6 +101,12 @@ export class TripEntity {
   @ApiProperty({ enum: TripStatus, example: TripStatus.ACTIVE })
   status!: TripStatus;
 
+  @ApiProperty({ example: 1, nullable: true, description: 'Id del emoji (1..30)' })
+  iconId!: number | null;
+
+  @ApiProperty({ example: 1, nullable: true, description: 'Id del color (1..30)' })
+  colorId!: number | null;
+
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
 

@@ -45,6 +45,8 @@ describe('ExpenseDetailsService', () => {
       expense: {
         create: jest.fn().mockResolvedValue({ id: 'exp-1' }),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
       },
       $transaction: jest.fn((cb) => cb(prisma)),
@@ -236,6 +238,64 @@ describe('ExpenseDetailsService', () => {
       await expect(service.remove('a', 'trip-1', 'exp-1')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('findAllForUser', () => {
+    it('devuelve la página con metadata y filtra por viajes del usuario', async () => {
+      prisma.expense.findMany.mockResolvedValue([{ id: 'exp-1' }, { id: 'exp-2' }]);
+      prisma.expense.count.mockResolvedValue(12);
+
+      const result = await service.findAllForUser('user-1', {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result).toEqual({
+        items: [{ id: 'exp-1' }, { id: 'exp-2' }],
+        total: 12,
+        page: 1,
+        limit: 10,
+        hasMore: true,
+      });
+
+      const args = prisma.expense.findMany.mock.calls[0][0];
+      expect(args.where.deletedAt).toBeNull();
+      expect(args.where.trip.participations.some.userId).toBe('user-1');
+      expect(args.skip).toBe(0);
+      expect(args.take).toBe(10);
+    });
+
+    it('aplica filtros de viaje, categoría, texto y fechas', async () => {
+      prisma.expense.findMany.mockResolvedValue([]);
+      prisma.expense.count.mockResolvedValue(0);
+
+      await service.findAllForUser('user-1', {
+        page: 2,
+        limit: 5,
+        tripId: 'trip-9',
+        category: 'Comida',
+        q: 'cena',
+        from: '2026-01-01',
+        to: '2026-01-31',
+      });
+
+      const args = prisma.expense.findMany.mock.calls[0][0];
+      expect(args.where.tripId).toBe('trip-9');
+      expect(args.where.category).toEqual({ equals: 'Comida', mode: 'insensitive' });
+      expect(args.where.description).toEqual({ contains: 'cena', mode: 'insensitive' });
+      expect(args.where.date.gte).toBeInstanceOf(Date);
+      expect(args.where.date.lte).toBeInstanceOf(Date);
+      expect(args.skip).toBe(5); // (page 2 - 1) * limit 5
+    });
+
+    it('hasMore es false en la última página', async () => {
+      prisma.expense.findMany.mockResolvedValue([{ id: 'exp-1' }]);
+      prisma.expense.count.mockResolvedValue(11);
+
+      const result = await service.findAllForUser('user-1', { page: 2, limit: 10 });
+
+      expect(result.hasMore).toBe(false);
     });
   });
 });

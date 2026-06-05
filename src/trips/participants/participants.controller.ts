@@ -8,7 +8,6 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -16,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
-  ApiCreatedResponse,
   ApiExtraModels,
   ApiForbiddenResponse,
   ApiNoContentResponse,
@@ -34,7 +32,6 @@ import { TripAccessGuard, Roles } from '../../common/guards/trip-role.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ErrorResponseDto } from '../../common/dto/error-response.dto';
 import { ParticipantsService } from './participants.service';
-import { AddParticipantDto } from './dto/add-participant.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
 import { ParticipantEntity } from './entities/participant.entity';
 import { ParticipationRole } from '@prisma/client';
@@ -81,50 +78,9 @@ export class ParticipantsController {
     return this.participantsService.findByTrip(tripId);
   }
 
-  @Post()
-  @Roles(ParticipationRole.CREATOR)
-  @ApiOperation({
-    summary: 'Agregar integrante al viaje',
-    description:
-      'Agrega un usuario registrado como integrante del viaje con rol MEMBER. Solo el CREATOR puede agregar integrantes.',
-  })
-  @ApiParam({ name: 'tripId', format: 'uuid' })
-  @ApiBody({ type: AddParticipantDto })
-  @ApiCreatedResponse({
-    description: 'Integrante agregado.',
-    schema: {
-      properties: {
-        data: { $ref: getSchemaPath(ParticipantEntity) },
-      },
-    },
-  })
-  @ApiBadRequestResponse({
-    description: 'Body inválido.',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({
-    description: 'Solo el creador del viaje puede realizar esta acción.',
-    type: ErrorResponseDto,
-  })
-  @ApiNotFoundResponse({
-    description: 'Viaje o usuario no encontrado.',
-    type: ErrorResponseDto,
-  })
-  @ApiConflictResponse({
-    description: 'El usuario ya participa en este viaje.',
-    type: ErrorResponseDto,
-  })
-  create(
-    @Param('tripId', ParseUUIDPipe) tripId: string,
-    @CurrentUser() user: User,
-    @Body() dto: AddParticipantDto,
-  ) {
-    return this.participantsService.addParticipant(
-      tripId,
-      user.id,
-      dto.userId,
-    );
-  }
+  // El alta directa de integrantes se reemplazó por el sistema de invitaciones
+  // (POST /trips/:tripId/invitations). El usuario ahora se une al viaje sólo al
+  // aceptar la invitación. Ver InvitationsController.
 
   @Patch(':userId')
   @Roles(ParticipationRole.CREATOR)
