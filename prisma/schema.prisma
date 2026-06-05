@@ -27,6 +27,12 @@ enum ExpenseSplitType {
   PERCENT
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 // --- MODELS ---
 
 model User {
@@ -38,11 +44,13 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  participations  Participation[]
-  createdExpenses Expense[]       @relation("ExpenseCreator")
-  expenseDetails  ExpenseDetail[]
-  debtsOwed       Payment[]       @relation("Debtor")
-  debtsReceived   Payment[]       @relation("Creditor")
+  participations      Participation[]
+  createdExpenses     Expense[]       @relation("ExpenseCreator")
+  expenseDetails      ExpenseDetail[]
+  debtsOwed           Payment[]       @relation("Debtor")
+  debtsReceived       Payment[]       @relation("Creditor")
+  invitationsSent     Invitation[]    @relation("InviterUser")
+  invitationsReceived Invitation[]    @relation("InvitedUser")
 
   @@map("users")
 }
@@ -62,6 +70,7 @@ model Trip {
   participations Participation[]
   expenses       Expense[]
   payments       Payment[]
+  invitations    Invitation[]
 
   @@index([deletedAt])
   @@map("trips")
@@ -140,4 +149,21 @@ model Payment {
   @@index([tripId])
   @@index([deletedAt])
   @@map("payments")
+}
+
+model Invitation {
+  id        String           @id @default(uuid()) @db.Uuid
+  tripId    String           @map("trip_id") @db.Uuid
+  invitedId String           @map("invited_id") @db.Uuid
+  invitedBy String           @map("invited_by") @db.Uuid
+  status    InvitationStatus @default(PENDING)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  trip    Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  invited User  @relation("InvitedUser", fields: [invitedId], references: [id], onDelete: Cascade)
+  inviter User  @relation("InviterUser", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, invitedId])
+  @@map("invitations")
 }

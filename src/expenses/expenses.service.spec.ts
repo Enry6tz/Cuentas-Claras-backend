@@ -4,18 +4,18 @@ import { ExpenseSplitType, ParticipationRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
 import { BalancesService } from '../balances/balances.service';
-import { ExpenseDetailsService } from './expense-details.service';
+import { ExpensesService } from './expenses.service';
 
 /**
- * Tests del ExpenseDetailsService.
+ * Tests del ExpensesService.
  *
  * Lo más importante de probar acá es la MATEMÁTICA de cómo se reparte un gasto
  * (EQUAL / EXACT / PERCENT), porque un error de centavos rompe los balances de
  * todo el viaje. La lógica de reparto es privada, así que la ejercitamos a
  * través de create() e inspeccionamos QUÉ "details" se intentaron guardar.
  */
-describe('ExpenseDetailsService', () => {
-  let service: ExpenseDetailsService;
+describe('ExpensesService', () => {
+  let service: ExpensesService;
   let prisma: any;
   let currencyService: any;
   let balancesService: any;
@@ -51,7 +51,6 @@ describe('ExpenseDetailsService', () => {
     };
 
     currencyService = {
-      // Sin conversión: 1 ARS = 1 ARS, así la matemática del reparto queda a la vista.
       convert: jest.fn().mockResolvedValue({ exchangeRate: 1, baseAmount: 100 }),
     };
 
@@ -61,25 +60,23 @@ describe('ExpenseDetailsService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ExpenseDetailsService,
+        ExpensesService,
         { provide: PrismaService, useValue: prisma },
         { provide: CurrencyService, useValue: currencyService },
         { provide: BalancesService, useValue: balancesService },
       ],
     }).compile();
 
-    service = module.get<ExpenseDetailsService>(ExpenseDetailsService);
+    service = module.get<ExpensesService>(ExpensesService);
   });
 
   describe('create — reparto del gasto', () => {
     beforeEach(() => {
-      // El actor puede crear gastos (es MEMBER).
       prisma.participation.findUnique.mockResolvedValue({
         userId: 'a',
         tripId: 'trip-1',
         role: ParticipationRole.MEMBER,
       });
-      // 'a' y 'b' son participantes del viaje.
       prisma.participation.findMany.mockResolvedValue([
         { userId: 'a' },
         { userId: 'b' },
@@ -102,9 +99,8 @@ describe('ExpenseDetailsService', () => {
 
       expect(a.amountOwed).toBe(50);
       expect(b.amountOwed).toBe(50);
-      expect(a.amountPaid).toBe(100); // 'a' puso toda la plata
+      expect(a.amountPaid).toBe(100);
       expect(b.amountPaid).toBe(0);
-      // El balance del viaje se recalcula después de crear el gasto.
       expect(balancesService.recalculateTripBalances).toHaveBeenCalledWith('trip-1');
     });
 
@@ -151,7 +147,7 @@ describe('ExpenseDetailsService', () => {
           originalAmount: 100,
           originalCurrency: 'ARS',
           splitType: ExpenseSplitType.EQUAL,
-          payers: [{ userId: 'a', amountPaid: 90 }], // 90 != 100
+          payers: [{ userId: 'a', amountPaid: 90 }],
           participantIds: ['a', 'b'],
         }),
       ).rejects.toThrow(NotFoundException);

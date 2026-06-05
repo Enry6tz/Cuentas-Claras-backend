@@ -116,19 +116,32 @@ Todas las respuestas se envuelven en `{ data: ... }` via el `TransformIntercepto
 
 | Metodo | Ruta | Estado | Descripcion |
 |--------|------|--------|-------------|
-| POST | `/auth/webhook` | Implementado | Webhook de Clerk |
+| POST | `/auth/webhook` | Implementado | Webhook de Clerk (Svix) |
 | GET | `/users/me` | Implementado | Perfil del usuario autenticado |
 | PATCH | `/users/me` | Implementado | Actualizar nombre |
-| GET | `/users/search?q=` | Implementado | Buscar usuarios por email |
-| GET | `/trips` | Placeholder | Listar trips del usuario |
-| POST | `/trips` | Placeholder | Crear trip |
-| GET | `/trips/:id` | Placeholder | Detalle de trip |
-| PATCH | `/trips/:id` | Placeholder | Actualizar trip |
-| DELETE | `/trips/:id` | Placeholder | Eliminar trip |
-| GET | `/trips/:tripId/expenses` | Placeholder | Listar gastos |
-| POST | `/trips/:tripId/expenses` | Placeholder | Crear gasto |
-| GET | `/trips/:tripId/expenses/:id` | Placeholder | Detalle de gasto |
-| DELETE | `/trips/:tripId/expenses/:id` | Placeholder | Eliminar gasto |
-| GET | `/trips/:tripId/payments` | Placeholder | Listar pagos |
-| POST | `/trips/:tripId/payments` | Placeholder | Registrar pago |
-| DELETE | `/trips/:tripId/payments/:id` | Placeholder | Eliminar pago |
+| GET | `/users/search?q=` | Implementado | Buscar usuarios por email/nombre |
+| GET | `/trips` | Implementado | Listar trips del usuario |
+| POST | `/trips` | Implementado | Crear trip (usuario queda como CREATOR) |
+| GET | `/trips/:id` | Implementado | Detalle de trip con participantes |
+| PATCH | `/trips/:id` | Implementado | Actualizar trip (solo CREATOR) |
+| DELETE | `/trips/:id` | Implementado | Soft-delete (solo CREATOR) |
+| GET | `/trips/:tripId/participants` | Implementado | Listar integrantes del viaje |
+| POST | `/trips/:tripId/participants` | Implementado | Agregar integrante (solo CREATOR) |
+| PATCH | `/trips/:tripId/participants/:userId` | Implementado | Cambiar rol (solo CREATOR) |
+| DELETE | `/trips/:tripId/participants/:userId` | Implementado | Quitar integrante (solo CREATOR, balance 0) |
+| DELETE | `/trips/:tripId/participants/me` | Implementado | Abandonar viaje (balance 0, no CREATOR) |
+| GET | `/trips/:tripId/expenses` | Implementado | Listar gastos del viaje |
+| POST | `/trips/:tripId/expenses` | Implementado | Crear gasto con split (EQUAL/EXACT/PERCENT) |
+| GET | `/trips/:tripId/expenses/:id` | Implementado | Detalle de gasto con reparto |
+| DELETE | `/trips/:tripId/expenses/:id` | Implementado | Soft-delete + recálculo de balances |
+| GET | `/trips/:tripId/payments` | Implementado | Listar pagos del viaje |
+| POST | `/trips/:tripId/payments` | Implementado | Registrar pago (deudor→acreedor) |
+| DELETE | `/trips/:tripId/payments/:id` | Implementado | Soft-delete + recálculo de balances |
+| GET | `/trips/:tripId/balances` | Implementado | Saldo neto por participante |
+| GET | `/trips/:tripId/balances/settlement` | Implementado | Transferencias sugeridas (min-cash-flow) |
+| GET | `/currency/rate?from=&to=` | Implementado | Tipo de cambio actual (con caché) |
+| GET | `/dashboard` | Implementado | Dashboard del usuario (trips, actividad, balance total) |
+| GET | `/admin/trips` | Implementado | Listar todos los viajes (admin global) |
+| PATCH | `/admin/trips/:id` | Implementado | Actualizar cualquier viaje (admin global) |
+| DELETE | `/admin/trips/:id` | Implementado | Soft-delete cualquier viaje (admin global) |
+| GET | `/health` | Implementado | Health check |

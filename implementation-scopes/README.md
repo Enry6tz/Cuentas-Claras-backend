@@ -79,10 +79,11 @@ dashboard ◄──┘                      │  └── moneda ┘
 |---|---|
 | Auth (Clerk JWT + webhook), Users (`/users/me`, `/users/search`) | ✅ Implementado |
 | Trips CRUD (soft-delete, solo CREATOR edita/borra) | ✅ Implementado (back + front) |
-| Integrantes / participations | ❌ No existe endpoint |
-| Expenses (`/trips/:tripId/expenses`) | ⚠️ Stub |
-| Payments (`/trips/:tripId/payments`) | ⚠️ Stub |
-| Balances | ❌ No existe |
-| Currency / Exchange Rate API | ❌ No existe |
-| Frontend Dashboard / Expenses / Payments | ⚠️ Placeholders |
+| Integrantes / participations | ✅ Implementado (back + front) |
+| Expenses (`/trips/:tripId/expenses`) con split EQUAL/EXACT/PERCENT | ✅ Implementado (back + front) |
+| Payments (`/trips/:tripId/payments`) | ✅ Implementado (back + front) |
+| Balances + liquidación (settlement min-cash-flow) | ✅ Implementado (back + front) |
+| Currency / Exchange Rate API (con caché y fallback manual) | ✅ Implementado |
+| Dashboard del usuario | ✅ Implementado (back + front) |
+| Admin global (solo lectura por defecto) | ✅ Implementado (back + front) |
 | Cross-cutting (`{data}`, filtros, guard, validación, Swagger en `/api`) | ✅ Implementado |

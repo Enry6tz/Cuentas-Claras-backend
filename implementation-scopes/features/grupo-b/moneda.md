@@ -1,7 +1,7 @@
 # Feature — Moneda (Currency / Exchange Rate)
 
 - **Grupo:** B (operaciones internas del viaje)
-- **Estado actual:** ❌ A construir. No existe `CurrencyService` ni integración externa, aunque el esquema soporta `exchangeRate` y `baseAmount`.
+- **Estado actual:** ✅ Implementado. `CurrencyService` con cliente HTTP a Exchange Rate API, caché en memoria (Map con TTL), fallback manual (acepta `manualExchangeRate`), y endpoint público `GET /currency/rate?from=&to=`. Integrado con creación de gastos.
 
 ## Alcance
 
@@ -32,8 +32,8 @@ Proveer la conversión de moneda que consume **gastos**: obtener el tipo de camb
 
 ## Checklist de Swagger
 
-- [ ] Si se expone endpoint: `@ApiTags('Currency')`, `@ApiBearerAuth()`, `@ApiQuery`, `@Api*Response` con sobre `{data}` y errores (502/400 si la API falla).
-- [ ] `@ApiProperty` en cualquier DTO de respuesta de tasa.
+- [x] `@ApiTags('Currency')`, `@ApiBearerAuth()`, `@ApiQuery`, `@Api*Response` con sobre `{data}` y errores (502/400 si la API falla).
+- [x] `@ApiProperty` en `CurrencyRateDto` de respuesta.
 
 ## Frontend
 
@@ -49,7 +49,7 @@ Proveer la conversión de moneda que consume **gastos**: obtener el tipo de camb
 
 ## Pendiente de definir en plan mode del grupo
 
-- **Proveedor** concreto de la API y formato de su respuesta.
-- Estrategia de caché (por día/moneda) y TTL.
-- Política exacta del fallback (manual vs error) y el timeout.
-- Si se expone endpoint público de consulta de tasa.
+- ~~**Proveedor** concreto de la API y formato de su respuesta.~~ ✅ Resuelto: Exchange Rate API (exchangerate-api.com) con respuesta JSON `{ conversion_rates: { ... } }`.
+- ~~Estrategia de caché (por día/moneda) y TTL.~~ ✅ Resuelto: caché en Map<string, { rate, timestamp }> con TTL de 1 hora por par de monedas.
+- ~~Política exacta del fallback (manual vs error) y el timeout.~~ ✅ Resuelto: timeout de 5s; si falla, acepta `manualExchangeRate` del DTO; si no hay manual, lanza 400.
+- ~~Si se expone endpoint público de consulta de tasa.~~ ✅ Resuelto: `GET /currency/rate?from=USD&to=ARS` expuesto para previsualización en frontend.

@@ -1,7 +1,7 @@
 # Feature — Dashboard y admin global
 
 - **Grupo:** A (núcleo global)
-- **Estado actual:** ⚠️ Placeholder en el front (`dashboard/` con tarjetas vacías). Admin global: ❌ a construir.
+- **Estado actual:** ✅ Implementado. Dashboard del usuario con datos reales (trips activos, balance total, actividad reciente). Admin global con bypass de solo lectura (`AdminGuard`, `GET /admin/trips`, `PATCH /admin/trips/:id`, `DELETE /admin/trips/:id`). Detección de admin via `publicMetadata.role === 'admin'` del JWT de Clerk.
 
 ## Alcance
 
@@ -30,9 +30,9 @@ Vista de inicio del usuario (resumen de sus viajes/balances) y **bypass de admin
 
 ## Checklist de Swagger
 
-- [ ] `@ApiTags('Dashboard'/'Admin')`, `@ApiBearerAuth()`.
-- [ ] `@ApiOperation` + `@Api*Response` con sobre `{data}`; documentar 403 para no-admins en endpoints admin.
-- [ ] `@ApiProperty` en los DTOs de respuesta agregada.
+- [x] `@ApiTags('Dashboard'/'Admin')`, `@ApiBearerAuth()`.
+- [x] `@ApiOperation` + `@Api*Response` con sobre `{data}`; documentar 403 para no-admins en endpoints admin.
+- [x] `@ApiProperty` en los DTOs de respuesta agregada.
 
 ## Frontend
 
@@ -51,6 +51,6 @@ Vista de inicio del usuario (resumen de sus viajes/balances) y **bypass de admin
 
 ## Pendiente de definir en plan mode del grupo
 
-- Nombre exacto del claim/metadata de admin y cómo se propaga al `request.user`.
-- Qué métricas agregadas muestra el admin y desde qué endpoint.
-- Qué consultas alimentan el dashboard del usuario (coordinar con balances).
+- ~~Nombre exacto del claim/metadata de admin y cómo se propaga al `request.user`.~~ ✅ Resuelto: `publicMetadata.role === 'admin'` en Clerk JWT, leído por `ClerkJwtStrategy` y expuesto en `request.user.publicMetadata.admin`.
+- ~~Qué métricas agregadas muestra el admin y desde qué endpoint.~~ ✅ Resuelto: `GET /admin/trips` — lista de todos los viajes del sistema con participantes y gastos.
+- ~~Qué consultas alimentan el dashboard del usuario (coordinar con balances).~~ ✅ Resuelto: `GET /dashboard` — viajes del usuario, actividad reciente (últimos 10 cambios), balance total agregado.
