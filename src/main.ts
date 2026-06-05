@@ -27,7 +27,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   const config = new DocumentBuilder()
-    .setTitle('Splitwise Clone API')
+    .setTitle('Cuentas Claras API')
     .setDescription('API for managing shared expenses')
     .setVersion('1.0')
     .addBearerAuth()

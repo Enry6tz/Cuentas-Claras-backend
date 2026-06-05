@@ -8,10 +8,14 @@ import {
 import { ParticipationRole, TripStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InvitationsService } from '../../invitations/invitations.service';
 
 @Injectable()
 export class ParticipantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private invitationsService: InvitationsService,
+  ) {}
 
   async findByTrip(tripId: string) {
     await this.assertTripExists(tripId);
@@ -31,29 +35,7 @@ export class ParticipantsService {
     await this.assertTripActive(tripId);
     await this.assertIsCreator(tripId, actorId);
 
-    const userExists = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!userExists) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    const existingParticipation =
-      await this.prisma.participation.findUnique({
-        where: { userId_tripId: { userId, tripId } },
-      });
-    if (existingParticipation) {
-      throw new ConflictException('El usuario ya participa en este viaje');
-    }
-
-    return this.prisma.participation.create({
-      data: { userId, tripId, role: ParticipationRole.MEMBER },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-      },
-    });
+    return this.invitationsService.create(tripId, actorId, userId);
   }
 
   async changeRole(

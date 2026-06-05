@@ -9,10 +9,12 @@ import { ParticipationRole, TripStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ParticipantsService } from './participants.service';
+import { InvitationsService } from '../../invitations/invitations.service';
 
 describe('ParticipantsService', () => {
   let service: ParticipantsService;
   let prisma: any;
+  let invitationsService: any;
 
   const mockTrip = {
     id: 'trip-1',
@@ -70,15 +72,21 @@ describe('ParticipantsService', () => {
     },
   };
 
+  const mockInvitationsService = {
+    create: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ParticipantsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: InvitationsService, useValue: mockInvitationsService },
       ],
     }).compile();
 
     service = module.get<ParticipantsService>(ParticipantsService);
+    invitationsService = module.get<InvitationsService>(InvitationsService);
     jest.clearAllMocks();
   });
 
@@ -124,10 +132,6 @@ describe('ParticipantsService', () => {
   describe('addParticipant', () => {
     beforeEach(() => {
       mockPrisma.trip.findUnique.mockResolvedValue(mockTrip);
-      // El servicio busca la participación por usuario en dos momentos:
-      //   1) assertIsCreator(actor) → debe ver al CREATOR.
-      //   2) chequeo de "ya participa" sobre el usuario a agregar → null.
-      // Por eso devolvemos según el userId consultado.
       mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
         const uid = where.userId_tripId.userId;
         if (uid === 'user-creator') {
@@ -135,37 +139,28 @@ describe('ParticipantsService', () => {
         }
         return Promise.resolve(null);
       });
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
+      mockInvitationsService.create.mockResolvedValue({ id: 'inv-1', status: 'PENDING' });
     });
 
-    it('should add a participant as MEMBER', async () => {
-      mockPrisma.participation.create.mockResolvedValue(
-        mockMemberParticipation,
-      );
-
+    it('should create an invitation (not a direct participation)', async () => {
       const result = await service.addParticipant(
         'trip-1',
         'user-creator',
         'user-member',
       );
 
-      expect(result).toEqual(mockMemberParticipation);
-      expect(mockPrisma.participation.create).toHaveBeenCalledWith({
-        data: {
-          userId: 'user-member',
-          tripId: 'trip-1',
-          role: ParticipationRole.MEMBER,
-        },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, avatarUrl: true },
-          },
-        },
-      });
+      expect(result).toEqual({ id: 'inv-1', status: 'PENDING' });
+      expect(mockInvitationsService.create).toHaveBeenCalledWith(
+        'trip-1',
+        'user-creator',
+        'user-member',
+      );
+      // The method now delegates to InvitationsService instead of creating a Participation directly
+      expect(mockPrisma.participation.create).not.toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException if actor is not CREATOR', async () => {
-      mockPrisma.participation.findUnique.mockResolvedValueOnce({
+      mockPrisma.participation.findUnique.mockResolvedValue({
         ...mockMemberParticipation,
         role: ParticipationRole.MEMBER,
       });
@@ -173,32 +168,6 @@ describe('ParticipantsService', () => {
       await expect(
         service.addParticipant('trip-1', 'user-member', 'user-other'),
       ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should throw NotFoundException if user to add does not exist', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.addParticipant('trip-1', 'user-creator', 'nonexistent'),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw ConflictException if user is already a participant', async () => {
-      // El actor es CREATOR (puede agregar) pero el usuario a agregar ya participa.
-      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
-        const uid = where.userId_tripId.userId;
-        if (uid === 'user-creator') {
-          return Promise.resolve(mockCreatorParticipation);
-        }
-        if (uid === 'user-member') {
-          return Promise.resolve(mockMemberParticipation);
-        }
-        return Promise.resolve(null);
-      });
-
-      await expect(
-        service.addParticipant('trip-1', 'user-creator', 'user-member'),
-      ).rejects.toThrow(ConflictException);
     });
 
     it('should throw BadRequestException if trip is FINALIZED', async () => {

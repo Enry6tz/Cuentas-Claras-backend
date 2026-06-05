@@ -11,8 +11,8 @@ import { BalancesService } from '../balances/balances.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 
 @Injectable()
-export class ExpenseDetailsService {
-  private readonly logger = new Logger(ExpenseDetailsService.name);
+export class ExpensesService {
+  private readonly logger = new Logger(ExpensesService.name);
 
   constructor(
     private prisma: PrismaService,
