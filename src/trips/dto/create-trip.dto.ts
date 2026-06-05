@@ -1,11 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 /**
@@ -55,4 +58,19 @@ export class CreateTripDto {
   @IsString()
   @Length(3, 3)
   baseCurrency!: string;
+
+  // Apariencia: ids 1..30 que el front mapea a un emoji y un color.
+  @ApiPropertyOptional({ example: 1, minimum: 1, maximum: 30, description: 'Id del emoji (1..30)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  iconId?: number;
+
+  @ApiPropertyOptional({ example: 1, minimum: 1, maximum: 30, description: 'Id del color (1..30)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  colorId?: number;
 }

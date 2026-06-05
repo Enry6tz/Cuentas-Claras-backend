@@ -8,14 +8,10 @@ import {
 import { ParticipationRole, TripStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../prisma/prisma.service';
-import { InvitationsService } from '../../invitations/invitations.service';
 
 @Injectable()
 export class ParticipantsService {
-  constructor(
-    private prisma: PrismaService,
-    private invitationsService: InvitationsService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async findByTrip(tripId: string) {
     await this.assertTripExists(tripId);
@@ -28,14 +24,6 @@ export class ParticipantsService {
         },
       },
     });
-  }
-
-  async addParticipant(tripId: string, actorId: string, userId: string) {
-    await this.assertTripExists(tripId);
-    await this.assertTripActive(tripId);
-    await this.assertIsCreator(tripId, actorId);
-
-    return this.invitationsService.create(tripId, actorId, userId);
   }
 
   async changeRole(

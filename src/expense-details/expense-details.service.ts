@@ -9,10 +9,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
 import { BalancesService } from '../balances/balances.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { QueryMyExpensesDto } from './dto/query-my-expenses.dto';
+
+const PUBLIC_USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+} as const;
 
 @Injectable()
-export class ExpensesService {
-  private readonly logger = new Logger(ExpensesService.name);
+export class ExpenseDetailsService {
+  private readonly logger = new Logger(ExpenseDetailsService.name);
 
   constructor(
     private prisma: PrismaService,
@@ -117,6 +125,58 @@ export class ExpensesService {
       },
       orderBy: { date: 'desc' },
     });
+  }
+
+  /**
+   * Lista paginada de gastos del usuario a través de TODOS sus viajes (aquellos
+   * donde participa). Soporta filtros por viaje, categoría, texto y rango de
+   * fechas. Pensado para la página global de Gastos.
+   */
+  async findAllForUser(userId: string, query: QueryMyExpensesDto) {
+    const { page, limit } = query;
+
+    const where: Prisma.ExpenseWhereInput = {
+      deletedAt: null,
+      trip: {
+        deletedAt: null,
+        participations: { some: { userId } },
+      },
+    };
+
+    if (query.tripId) where.tripId = query.tripId;
+    if (query.category) {
+      where.category = { equals: query.category, mode: 'insensitive' };
+    }
+    if (query.q) {
+      where.description = { contains: query.q, mode: 'insensitive' };
+    }
+    if (query.from || query.to) {
+      const date: Prisma.DateTimeFilter = {};
+      if (query.from) date.gte = new Date(query.from);
+      if (query.to) {
+        const end = new Date(query.to);
+        end.setHours(23, 59, 59, 999);
+        date.lte = end;
+      }
+      where.date = date;
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.expense.findMany({
+        where,
+        include: {
+          details: { include: { user: { select: PUBLIC_USER_SELECT } } },
+          creator: { select: PUBLIC_USER_SELECT },
+          trip: { select: { id: true, name: true, baseCurrency: true } },
+        },
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.expense.count({ where }),
+    ]);
+
+    return { items, total, page, limit, hasMore: page * limit < total };
   }
 
   async findOne(userId: string, tripId: string, expenseId: string) {

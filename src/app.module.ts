@@ -6,14 +6,13 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TripsModule } from './trips/trips.module';
-import { ExpensesModule } from './expenses/expenses.module';
+import { ExpenseDetailsModule } from './expense-details/expense-details.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CurrencyModule } from './currency/currency.module';
 import { BalancesModule } from './balances/balances.module';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AdminModule } from './admin/admin.module';
-import { InvitationsModule } from './invitations/invitations.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -28,14 +27,13 @@ import configuration from './config/configuration';
     AuthModule,
     UsersModule,
     TripsModule,
-    ExpensesModule,
+    ExpenseDetailsModule,
     PaymentsModule,
     CurrencyModule,
     BalancesModule,
     HealthModule,
     DashboardModule,
     AdminModule,
-    InvitationsModule,
   ],
 })
 export class AppModule {}

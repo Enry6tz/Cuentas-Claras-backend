@@ -1,7 +1,7 @@
 # Feature — Gastos (Expenses)
 
 - **Grupo:** B (operaciones internas del viaje)
-- **Estado actual:** ✅ Implementado. Módulo `ExpensesModule` (ex `ExpenseDetailsModule`) con `ExpensesService`, `ExpensesController`, split EQUAL/EXACT/PERCENT, conversión de moneda, y recálculo de balances. Frontend con formulario de gasto y listado.
+- **Estado actual:** ⚠️ Stub. Existe `ExpensesController` con rutas `/trips/:tripId/expenses` que devuelven "Not implemented yet". Falta el service y la lógica.
 
 ## Alcance
 
@@ -25,7 +25,7 @@ Registrar y consultar gastos dentro de un viaje, con división entre participant
 - **Moneda (ADR-0004):** snapshot inmutable de la tasa al crear; si `originalCurrency == baseCurrency` → `exchangeRate = 1`. Fallback manual/error si la API falla.
 - **Dinero:** operar en `Decimal`, nunca `number` (transversal §4).
 - **Soft-delete:** lecturas filtran `deletedAt: null`; borrar recalcula balances (ADR-0002).
-- **Permisos implementados:** MEMBER y CREATOR pueden crear gastos; SUPERVISOR no. Puede borrar: el creador del gasto o el CREATOR del viaje.
+- Quién puede crear/borrar gastos (¿cualquier participante?, ¿solo el creador del gasto?, ¿CREATOR/SUPERVISOR?) → a fijar por el grupo (ver pendientes).
 
 ## Endpoints orientativos (ya ruteados, a implementar)
 
@@ -38,14 +38,14 @@ Registrar y consultar gastos dentro de un viaje, con división entre participant
 
 ## Checklist de Swagger
 
-- [x] `@ApiTags('Expenses')`, `@ApiBearerAuth()`.
-- [x] `@ApiOperation` + `@Api*Response` con sobre `{data}`: 400 (reparto inválido), 403, 404, 502/400 si la conversión falla.
-- [x] `@ApiParam('tripId'/'id')`, `@ApiBody` con el DTO de creación (incluye `splitType` y reparto).
-- [x] `@ApiProperty` en DTOs y en la entidad de gasto + `ExpenseDetail`.
+- [ ] `@ApiTags('Expenses')`, `@ApiBearerAuth()`.
+- [ ] `@ApiOperation` + `@Api*Response` con sobre `{data}`: 400 (reparto inválido), 403, 404, 502/400 si la conversión falla.
+- [ ] `@ApiParam('tripId'/'id')`, `@ApiBody` con el DTO de creación (incluye `splitType` y reparto).
+- [ ] `@ApiProperty` en DTOs y en la entidad de gasto + `ExpenseDetail`.
 
 ## Frontend
 
-- Página `(authenticated)/expenses/` (lista de viajes con gastos) y sección de gastos dentro de `trips/[id]`. Componentes: `ExpenseList`, `ExpenseFormDialog`.
+- Página `(authenticated)/expenses/` (hoy placeholder) y/o sección de gastos dentro de `trips/[id]`.
 - Formulario de gasto (Zod + React Hook Form recomendado): monto, moneda, categoría, tipo de split y reparto entre integrantes. Mostrar montos con `formatCurrency()`.
 
 ## ADRs relacionadas
@@ -60,7 +60,7 @@ Registrar y consultar gastos dentro de un viaje, con división entre participant
 
 ## Pendiente de definir en plan mode del grupo
 
-- ~~DTO exacto por cada `splitType` (estructura del reparto y de "quién pagó").~~ ✅ Resuelto: `CreateExpenseDto` con `payers`, `participantIds`, `exactShares`, `percentShares`.
-- ~~Permisos de creación/borrado de gastos por rol.~~ ✅ Resuelto: MEMBER/CREATOR pueden crear; SUPERVISOR no. Creador o CREATOR del viaje pueden borrar.
-- Si se permite **editar** un gasto (y entonces el recálculo correspondiente). — Pendiente (no implementado).
-- ~~Asignación precisa del centavo residual.~~ ✅ Resuelto: algoritmo determinista en `splitEqual` y `splitPercent`.
+- DTO exacto por cada `splitType` (estructura del reparto y de "quién pagó").
+- Permisos de creación/borrado de gastos por rol.
+- Si se permite **editar** un gasto (y entonces el recálculo correspondiente).
+- Asignación precisa del centavo residual.

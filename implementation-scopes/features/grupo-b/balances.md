@@ -1,7 +1,7 @@
 # Feature — Balances y liquidación
 
 - **Grupo:** B (operaciones internas del viaje)
-- **Estado actual:** ✅ Implementado. `BalancesService` con cálculo de saldo neto por participante, algoritmo de liquidación greedy min-cash-flow (ADR-0003), y `recalculateTripBalances()` disparado desde gastos y pagos. Frontend con `BalanceSummary` y `SettlementSuggestions`.
+- **Estado actual:** ❌ A construir. No existe módulo de balances; solo el campo denormalizado `Participation.currentBalance`.
 
 ## Alcance
 
@@ -37,13 +37,13 @@ Calcular cuánto debe/le deben a cada participante y sugerir cómo saldar minimi
 
 ## Checklist de Swagger
 
-- [x] `@ApiTags('Balances')`, `@ApiBearerAuth()`.
-- [x] `@ApiOperation` + `@Api*Response` con sobre `{data}`: 403, 404.
-- [x] `@ApiProperty` en los DTOs de saldo y de transferencia sugerida.
+- [ ] `@ApiTags('Balances')`, `@ApiBearerAuth()`.
+- [ ] `@ApiOperation` + `@Api*Response` con sobre `{data}`: 403, 404.
+- [ ] `@ApiProperty` en los DTOs de saldo y de transferencia sugerida.
 
 ## Frontend
 
-- Sección de balances en `trips/[id]` (pestaña "Balances"): `BalanceSummary` (lista de saldos por integrante) y `SettlementSuggestions` (deudor → acreedor, monto, con botón "Registrar pago" que prellena el `PaymentFormDialog`). Montos con `formatCurrency()`.
+- Sección de balances en `trips/[id]`: lista de saldos por integrante y bloque de "liquidación sugerida" (deudor → acreedor, monto). Botón para registrar el pago sugerido (enlaza con feature pagos). Montos con `formatCurrency()`.
 
 ## ADRs relacionadas
 
@@ -57,6 +57,6 @@ Calcular cuánto debe/le deben a cada participante y sugerir cómo saldar minimi
 
 ## Pendiente de definir en plan mode del grupo
 
-- ~~Convención de signo del balance (positivo/negativo).~~ ✅ Resuelto: negativo = debe (deudor), positivo = le deben (acreedor).
-- ~~Recálculo por viaje completo vs incremental, y frecuencia del job batch.~~ ✅ Resuelto: recálculo completo por viaje tras cada escritura. Job batch (ScheduleModule) pendiente de implementar.
-- ~~Forma exacta de la respuesta de saldos y de settlement; manejo de empates y centavo residual.~~ ✅ Resuelto: `getBalances()` devuelve `{ userId, userName, balance }`, `getSettlement()` devuelve `{ from, to, amount }`. Empates resueltos por orden alfabético de userId.
+- Convención de signo del balance (positivo/negativo).
+- Recálculo por viaje completo vs incremental, y frecuencia del job batch.
+- Forma exacta de la respuesta de saldos y de settlement; manejo de empates y centavo residual.

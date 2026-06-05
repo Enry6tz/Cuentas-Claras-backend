@@ -1,7 +1,7 @@
 # Feature — Pagos (Payments)
 
 - **Grupo:** B (operaciones internas del viaje)
-- **Estado actual:** ✅ Implementado. `PaymentsService` con creación/borrado de pagos entre participantes, validación (deudor ≠ acreedor, ambos participantes, balance > 0), y recálculo de balances. Frontend con formulario de pago y listado.
+- **Estado actual:** ⚠️ Stub. Existe `PaymentsController` con rutas `/trips/:tripId/payments` que devuelven "Not implemented yet". Falta el service.
 
 ## Alcance
 
@@ -23,7 +23,7 @@ Registrar transferencias entre integrantes para saldar deudas dentro de un viaje
 - El pago está en la **moneda base** del viaje (BR03). Si se quisiera otra moneda, sería un cambio de alcance (no contemplado).
 - **Soft-delete:** lecturas filtran `deletedAt: null`; borrar recalcula balances (ADR-0002).
 - Registrar/borrar un pago **modifica el balance** de deudor y acreedor (ADR-0002): registrar reduce la deuda; borrar la revierte.
-- **Permisos implementados:** MEMBER y CREATOR pueden registrar pagos; SUPERVISOR no. Puede borrar: el deudor del pago o el CREATOR del viaje. Un MEMBER que no es el deudor no puede borrar.
+- Quién puede registrar/borrar pagos (¿el propio deudor?, ¿cualquier participante?, ¿CREATOR/SUPERVISOR?) → a fijar por el grupo.
 
 ## Endpoints orientativos (ya ruteados, a implementar)
 
@@ -35,10 +35,10 @@ Registrar transferencias entre integrantes para saldar deudas dentro de un viaje
 
 ## Checklist de Swagger
 
-- [x] `@ApiTags('Payments')`, `@ApiBearerAuth()`.
-- [x] `@ApiOperation` + `@Api*Response` con sobre `{data}`: 400 (deudor=acreedor / no participante / monto inválido), 403, 404, 204 al borrar.
-- [x] `@ApiParam('tripId'/'id')`, `@ApiBody` con el DTO de pago.
-- [x] `@ApiProperty` en DTO y entidad de pago.
+- [ ] `@ApiTags('Payments')`, `@ApiBearerAuth()`.
+- [ ] `@ApiOperation` + `@Api*Response` con sobre `{data}`: 400 (deudor=acreedor / no participante / monto inválido), 403, 404, 204 al borrar.
+- [ ] `@ApiParam('tripId'/'id')`, `@ApiBody` con el DTO de pago.
+- [ ] `@ApiProperty` en DTO y entidad de pago.
 
 ## Frontend
 
@@ -56,6 +56,6 @@ Registrar transferencias entre integrantes para saldar deudas dentro de un viaje
 
 ## Pendiente de definir en plan mode del grupo
 
-- ~~Permisos de registro/borrado por rol.~~ ✅ Resuelto: MEMBER/CREATOR registran; SUPERVISOR no. Deudor o CREATOR pueden borrar.
-- ~~Si el formulario se prellena desde la liquidación sugerida (integración con balances).~~ ✅ Resuelto: `SettlementSuggestions` componente en frontend prellena el `PaymentFormDialog`.
-- ~~DTO exacto y respuestas.~~ ✅ Resuelto: `CreatePaymentDto` con `debtorId`, `creditorId`, `amount`, `note?`, `date`.
+- Permisos de registro/borrado por rol.
+- Si el formulario se prellena desde la liquidación sugerida (integración con balances).
+- DTO exacto y respuestas.

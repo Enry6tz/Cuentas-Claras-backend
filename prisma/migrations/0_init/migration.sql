@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "TripStatus" AS ENUM ('ACTIVE', 'FINALIZED');
 
@@ -8,7 +11,7 @@ CREATE TYPE "ParticipationRole" AS ENUM ('CREATOR', 'SUPERVISOR', 'MEMBER');
 CREATE TYPE "ExpenseSplitType" AS ENUM ('EQUAL', 'EXACT', 'PERCENT');
 
 -- CreateEnum
-CREATE TYPE "InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'DECLINED');
+CREATE TYPE "InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -101,11 +104,12 @@ CREATE TABLE "payments" (
 CREATE TABLE "invitations" (
     "id" UUID NOT NULL,
     "trip_id" UUID NOT NULL,
-    "invited_id" UUID NOT NULL,
-    "invited_by" UUID NOT NULL,
+    "inviter_id" UUID NOT NULL,
+    "invitee_id" UUID NOT NULL,
+    "role" "ParticipationRole" NOT NULL DEFAULT 'MEMBER',
     "status" "InvitationStatus" NOT NULL DEFAULT 'PENDING',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "responded_at" TIMESTAMP(3),
 
     CONSTRAINT "invitations_pkey" PRIMARY KEY ("id")
 );
@@ -141,7 +145,10 @@ CREATE INDEX "payments_trip_id_idx" ON "payments"("trip_id");
 CREATE INDEX "payments_deleted_at_idx" ON "payments"("deleted_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "invitations_trip_id_invited_id_key" ON "invitations"("trip_id", "invited_id");
+CREATE INDEX "invitations_invitee_id_status_idx" ON "invitations"("invitee_id", "status");
+
+-- CreateIndex
+CREATE INDEX "invitations_trip_id_idx" ON "invitations"("trip_id");
 
 -- AddForeignKey
 ALTER TABLE "participations" ADD CONSTRAINT "participations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -174,7 +181,8 @@ ALTER TABLE "payments" ADD CONSTRAINT "payments_trip_id_fkey" FOREIGN KEY ("trip
 ALTER TABLE "invitations" ADD CONSTRAINT "invitations_trip_id_fkey" FOREIGN KEY ("trip_id") REFERENCES "trips"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "invitations" ADD CONSTRAINT "invitations_invited_id_fkey" FOREIGN KEY ("invited_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "invitations" ADD CONSTRAINT "invitations_inviter_id_fkey" FOREIGN KEY ("inviter_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "invitations" ADD CONSTRAINT "invitations_invited_by_fkey" FOREIGN KEY ("invited_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "invitations" ADD CONSTRAINT "invitations_invitee_id_fkey" FOREIGN KEY ("invitee_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+

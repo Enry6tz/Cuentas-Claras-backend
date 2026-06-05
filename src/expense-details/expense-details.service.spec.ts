@@ -4,18 +4,18 @@ import { ExpenseSplitType, ParticipationRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
 import { BalancesService } from '../balances/balances.service';
-import { ExpensesService } from './expenses.service';
+import { ExpenseDetailsService } from './expense-details.service';
 
 /**
- * Tests del ExpensesService.
+ * Tests del ExpenseDetailsService.
  *
  * Lo más importante de probar acá es la MATEMÁTICA de cómo se reparte un gasto
  * (EQUAL / EXACT / PERCENT), porque un error de centavos rompe los balances de
  * todo el viaje. La lógica de reparto es privada, así que la ejercitamos a
  * través de create() e inspeccionamos QUÉ "details" se intentaron guardar.
  */
-describe('ExpensesService', () => {
-  let service: ExpensesService;
+describe('ExpenseDetailsService', () => {
+  let service: ExpenseDetailsService;
   let prisma: any;
   let currencyService: any;
   let balancesService: any;
@@ -45,12 +45,15 @@ describe('ExpensesService', () => {
       expense: {
         create: jest.fn().mockResolvedValue({ id: 'exp-1' }),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
       },
       $transaction: jest.fn((cb) => cb(prisma)),
     };
 
     currencyService = {
+      // Sin conversión: 1 ARS = 1 ARS, así la matemática del reparto queda a la vista.
       convert: jest.fn().mockResolvedValue({ exchangeRate: 1, baseAmount: 100 }),
     };
 
@@ -60,23 +63,25 @@ describe('ExpensesService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ExpensesService,
+        ExpenseDetailsService,
         { provide: PrismaService, useValue: prisma },
         { provide: CurrencyService, useValue: currencyService },
         { provide: BalancesService, useValue: balancesService },
       ],
     }).compile();
 
-    service = module.get<ExpensesService>(ExpensesService);
+    service = module.get<ExpenseDetailsService>(ExpenseDetailsService);
   });
 
   describe('create — reparto del gasto', () => {
     beforeEach(() => {
+      // El actor puede crear gastos (es MEMBER).
       prisma.participation.findUnique.mockResolvedValue({
         userId: 'a',
         tripId: 'trip-1',
         role: ParticipationRole.MEMBER,
       });
+      // 'a' y 'b' son participantes del viaje.
       prisma.participation.findMany.mockResolvedValue([
         { userId: 'a' },
         { userId: 'b' },
@@ -99,8 +104,9 @@ describe('ExpensesService', () => {
 
       expect(a.amountOwed).toBe(50);
       expect(b.amountOwed).toBe(50);
-      expect(a.amountPaid).toBe(100);
+      expect(a.amountPaid).toBe(100); // 'a' puso toda la plata
       expect(b.amountPaid).toBe(0);
+      // El balance del viaje se recalcula después de crear el gasto.
       expect(balancesService.recalculateTripBalances).toHaveBeenCalledWith('trip-1');
     });
 
@@ -147,7 +153,7 @@ describe('ExpensesService', () => {
           originalAmount: 100,
           originalCurrency: 'ARS',
           splitType: ExpenseSplitType.EQUAL,
-          payers: [{ userId: 'a', amountPaid: 90 }],
+          payers: [{ userId: 'a', amountPaid: 90 }], // 90 != 100
           participantIds: ['a', 'b'],
         }),
       ).rejects.toThrow(NotFoundException);
@@ -232,6 +238,64 @@ describe('ExpensesService', () => {
       await expect(service.remove('a', 'trip-1', 'exp-1')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('findAllForUser', () => {
+    it('devuelve la página con metadata y filtra por viajes del usuario', async () => {
+      prisma.expense.findMany.mockResolvedValue([{ id: 'exp-1' }, { id: 'exp-2' }]);
+      prisma.expense.count.mockResolvedValue(12);
+
+      const result = await service.findAllForUser('user-1', {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result).toEqual({
+        items: [{ id: 'exp-1' }, { id: 'exp-2' }],
+        total: 12,
+        page: 1,
+        limit: 10,
+        hasMore: true,
+      });
+
+      const args = prisma.expense.findMany.mock.calls[0][0];
+      expect(args.where.deletedAt).toBeNull();
+      expect(args.where.trip.participations.some.userId).toBe('user-1');
+      expect(args.skip).toBe(0);
+      expect(args.take).toBe(10);
+    });
+
+    it('aplica filtros de viaje, categoría, texto y fechas', async () => {
+      prisma.expense.findMany.mockResolvedValue([]);
+      prisma.expense.count.mockResolvedValue(0);
+
+      await service.findAllForUser('user-1', {
+        page: 2,
+        limit: 5,
+        tripId: 'trip-9',
+        category: 'Comida',
+        q: 'cena',
+        from: '2026-01-01',
+        to: '2026-01-31',
+      });
+
+      const args = prisma.expense.findMany.mock.calls[0][0];
+      expect(args.where.tripId).toBe('trip-9');
+      expect(args.where.category).toEqual({ equals: 'Comida', mode: 'insensitive' });
+      expect(args.where.description).toEqual({ contains: 'cena', mode: 'insensitive' });
+      expect(args.where.date.gte).toBeInstanceOf(Date);
+      expect(args.where.date.lte).toBeInstanceOf(Date);
+      expect(args.skip).toBe(5); // (page 2 - 1) * limit 5
+    });
+
+    it('hasMore es false en la última página', async () => {
+      prisma.expense.findMany.mockResolvedValue([{ id: 'exp-1' }]);
+      prisma.expense.count.mockResolvedValue(11);
+
+      const result = await service.findAllForUser('user-1', { page: 2, limit: 10 });
+
+      expect(result.hasMore).toBe(false);
     });
   });
 });

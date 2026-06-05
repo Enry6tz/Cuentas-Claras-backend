@@ -30,7 +30,7 @@ import { User } from '@prisma/client';
 import { ClerkAuthGuard } from '../common/guards/clerk-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
-import { ExpensesService } from './expenses.service';
+import { ExpenseDetailsService } from './expense-details.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { ExpenseEntity } from './entities/expense.entity';
 
@@ -41,7 +41,7 @@ import { ExpenseEntity } from './entities/expense.entity';
 @UseGuards(ClerkAuthGuard)
 @Controller('trips/:tripId/expenses')
 export class ExpensesController {
-  constructor(private expensesService: ExpensesService) {}
+  constructor(private expenseDetailsService: ExpenseDetailsService) {}
 
   @Get()
   @ApiOperation({
@@ -66,7 +66,7 @@ export class ExpensesController {
     @CurrentUser() user: User,
     @Param('tripId', ParseUUIDPipe) tripId: string,
   ) {
-    return this.expensesService.findAll(user.id, tripId);
+    return this.expenseDetailsService.findAll(user.id, tripId);
   }
 
   @Post()
@@ -96,7 +96,7 @@ export class ExpensesController {
     @Param('tripId', ParseUUIDPipe) tripId: string,
     @Body() dto: CreateExpenseDto,
   ) {
-    return this.expensesService.create(user.id, tripId, dto);
+    return this.expenseDetailsService.create(user.id, tripId, dto);
   }
 
   @Get(':id')
@@ -121,7 +121,7 @@ export class ExpensesController {
     @Param('tripId', ParseUUIDPipe) tripId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.expensesService.findOne(user.id, tripId, id);
+    return this.expenseDetailsService.findOne(user.id, tripId, id);
   }
 
   @Delete(':id')
@@ -141,6 +141,6 @@ export class ExpensesController {
     @Param('tripId', ParseUUIDPipe) tripId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    await this.expensesService.remove(user.id, tripId, id);
+    await this.expenseDetailsService.remove(user.id, tripId, id);
   }
 }

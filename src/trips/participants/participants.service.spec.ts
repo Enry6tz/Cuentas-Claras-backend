@@ -9,12 +9,10 @@ import { ParticipationRole, TripStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ParticipantsService } from './participants.service';
-import { InvitationsService } from '../../invitations/invitations.service';
 
 describe('ParticipantsService', () => {
   let service: ParticipantsService;
   let prisma: any;
-  let invitationsService: any;
 
   const mockTrip = {
     id: 'trip-1',
@@ -72,21 +70,15 @@ describe('ParticipantsService', () => {
     },
   };
 
-  const mockInvitationsService = {
-    create: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ParticipantsService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: InvitationsService, useValue: mockInvitationsService },
       ],
     }).compile();
 
     service = module.get<ParticipantsService>(ParticipantsService);
-    invitationsService = module.get<InvitationsService>(InvitationsService);
     jest.clearAllMocks();
   });
 
@@ -126,59 +118,6 @@ describe('ParticipantsService', () => {
       await expect(service.findByTrip('trip-1')).rejects.toThrow(
         NotFoundException,
       );
-    });
-  });
-
-  describe('addParticipant', () => {
-    beforeEach(() => {
-      mockPrisma.trip.findUnique.mockResolvedValue(mockTrip);
-      mockPrisma.participation.findUnique.mockImplementation(({ where }) => {
-        const uid = where.userId_tripId.userId;
-        if (uid === 'user-creator') {
-          return Promise.resolve(mockCreatorParticipation);
-        }
-        return Promise.resolve(null);
-      });
-      mockInvitationsService.create.mockResolvedValue({ id: 'inv-1', status: 'PENDING' });
-    });
-
-    it('should create an invitation (not a direct participation)', async () => {
-      const result = await service.addParticipant(
-        'trip-1',
-        'user-creator',
-        'user-member',
-      );
-
-      expect(result).toEqual({ id: 'inv-1', status: 'PENDING' });
-      expect(mockInvitationsService.create).toHaveBeenCalledWith(
-        'trip-1',
-        'user-creator',
-        'user-member',
-      );
-      // The method now delegates to InvitationsService instead of creating a Participation directly
-      expect(mockPrisma.participation.create).not.toHaveBeenCalled();
-    });
-
-    it('should throw ForbiddenException if actor is not CREATOR', async () => {
-      mockPrisma.participation.findUnique.mockResolvedValue({
-        ...mockMemberParticipation,
-        role: ParticipationRole.MEMBER,
-      });
-
-      await expect(
-        service.addParticipant('trip-1', 'user-member', 'user-other'),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should throw BadRequestException if trip is FINALIZED', async () => {
-      mockPrisma.trip.findUnique.mockResolvedValue({
-        ...mockTrip,
-        status: TripStatus.FINALIZED,
-      });
-
-      await expect(
-        service.addParticipant('trip-1', 'user-creator', 'user-member'),
-      ).rejects.toThrow(BadRequestException);
     });
   });
 
