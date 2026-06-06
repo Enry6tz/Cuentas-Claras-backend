@@ -1,10 +1,11 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ParticipationRole, Prisma } from '@prisma/client';
+import { ParticipationRole, TripStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BalancesService } from '../balances/balances.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -188,6 +189,12 @@ export class PaymentsService {
   }
 
   private async assertCanCreate(userId: string, tripId: string) {
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip || trip.deletedAt) throw new NotFoundException('Trip not found');
+    if (trip.status === TripStatus.FINALIZED) {
+      throw new BadRequestException('No se pueden registrar pagos en un viaje finalizado');
+    }
+
     const participation = await this.prisma.participation.findUnique({
       where: { userId_tripId: { userId, tripId } },
     });

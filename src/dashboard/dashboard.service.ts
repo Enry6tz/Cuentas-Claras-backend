@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { TripsService } from '../trips/trips.service';
 import { DashboardEntity } from './entities/dashboard.entity';
@@ -32,10 +33,19 @@ export class DashboardService {
       date: e.date.toISOString(),
     }));
 
+    const participations = await this.prisma.participation.findMany({
+      where: { userId, trip: { deletedAt: null } },
+      select: { currentBalance: true },
+    });
+    const balanceTotal = participations
+      .reduce((sum, p) => sum.add(p.currentBalance), new Decimal(0))
+      .toDecimalPlaces(2)
+      .toString();
+
     return {
       activeTrips: activeTrips.length,
       totalTrips,
-      balanceTotal: '0.00',
+      balanceTotal,
       recentActivity,
     };
   }
