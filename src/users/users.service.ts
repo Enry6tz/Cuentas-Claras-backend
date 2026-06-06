@@ -10,7 +10,11 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({
       where: { clerkId },
     });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user)
+      throw new NotFoundException({
+        code: 'USER_NOT_FOUND',
+        message: 'User not found',
+      });
     return user;
   }
 
@@ -18,7 +22,11 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user)
+      throw new NotFoundException({
+        code: 'USER_NOT_FOUND',
+        message: 'User not found',
+      });
     return user;
   }
 

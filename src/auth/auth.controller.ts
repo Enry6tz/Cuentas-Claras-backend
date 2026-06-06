@@ -14,6 +14,8 @@ import {
   ApiBadRequestResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
+  ApiHeader,
+  ApiBody,
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { Webhook } from 'svix';
@@ -34,6 +36,39 @@ export class AuthController {
     summary: 'Handle Clerk webhook events',
     description:
       'Endpoint público para recibir webhooks de Clerk (user.created, user.updated, user.deleted). Verificado con Svix.',
+  })
+  @ApiHeader({
+    name: 'svix-id',
+    required: true,
+    description: 'ID del mensaje Svix (firma del webhook de Clerk).',
+  })
+  @ApiHeader({
+    name: 'svix-timestamp',
+    required: true,
+    description: 'Timestamp del mensaje Svix.',
+  })
+  @ApiHeader({
+    name: 'svix-signature',
+    required: true,
+    description: 'Firma Svix para verificar la autenticidad del payload.',
+  })
+  @ApiBody({
+    description:
+      'Payload crudo (raw JSON) del evento de Clerk. Se verifica con Svix; ' +
+      'tipos soportados: user.created, user.updated, user.deleted.',
+    schema: {
+      type: 'object',
+      example: {
+        type: 'user.created',
+        data: {
+          id: 'user_2abc...',
+          email_addresses: [{ email_address: 'usuario@mail.com' }],
+          first_name: 'Ada',
+          last_name: 'Lovelace',
+          image_url: 'https://img.clerk.com/...',
+        },
+      },
+    },
   })
   @ApiOkResponse({ description: 'Webhook processed successfully.' })
   @ApiBadRequestResponse({ description: 'Missing svix headers or invalid signature.' })

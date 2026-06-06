@@ -31,7 +31,10 @@ export class PaymentsService {
       await this.assertCanCreate(userId, tripId);
 
       if (dto.debtorId === dto.creditorId) {
-        throw new NotFoundException('Debtor and creditor must be different');
+        throw new NotFoundException({
+          code: 'DEBTOR_CREDITOR_SAME',
+          message: 'Debtor and creditor must be different',
+        });
       }
 
       const participantIds = [dto.debtorId, dto.creditorId];
@@ -42,9 +45,10 @@ export class PaymentsService {
       if (participants.length !== 2) {
         const foundIds = participants.map((p) => p.userId);
         const missing = participantIds.filter((id) => !foundIds.includes(id));
-        throw new NotFoundException(
-          `Users are not participants of this trip: ${missing.join(', ')}`,
-        );
+        throw new NotFoundException({
+          code: 'USERS_NOT_PARTICIPANTS',
+          message: `Users are not participants of this trip: ${missing.join(', ')}`,
+        });
       }
 
       const payment = await this.prisma.$transaction(async (tx) => {
@@ -153,7 +157,10 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException({
+        code: 'PAYMENT_NOT_FOUND',
+        message: 'Payment not found',
+      });
     }
 
     const participation = await this.prisma.participation.findUnique({
@@ -164,9 +171,10 @@ export class PaymentsService {
       participation?.role !== ParticipationRole.CREATOR &&
       payment.debtorId !== userId
     ) {
-      throw new ForbiddenException(
-        'Only the debtor or trip creator can delete this payment',
-      );
+      throw new ForbiddenException({
+        code: 'ONLY_DEBTOR_OR_CREATOR',
+        message: 'Only the debtor or trip creator can delete this payment',
+      });
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -185,11 +193,17 @@ export class PaymentsService {
     });
 
     if (!participation) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
 
     if (participation.role === ParticipationRole.SUPERVISOR) {
-      throw new ForbiddenException('Supervisors cannot create payments');
+      throw new ForbiddenException({
+        code: 'SUPERVISOR_CANNOT_CREATE_PAYMENT',
+        message: 'Supervisors cannot create payments',
+      });
     }
   }
 
@@ -203,9 +217,15 @@ export class PaymentsService {
         where: { id: tripId },
       });
       if (!trip || trip.deletedAt) {
-        throw new NotFoundException('Trip not found');
+        throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
       }
-      throw new ForbiddenException('You are not a participant of this trip');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'You are not a participant of this trip',
+      });
     }
   }
 }

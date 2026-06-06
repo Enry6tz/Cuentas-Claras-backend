@@ -64,9 +64,11 @@ export class CurrencyService {
       'https://v6.exchangerate-api.com/v6';
 
     if (!apiKey) {
-      throw new BadRequestException(
-        'Exchange rate API key is not configured. Provide a manual exchange rate or set EXCHANGE_RATE_API_KEY.',
-      );
+      throw new BadRequestException({
+        code: 'EXCHANGE_RATE_NOT_CONFIGURED',
+        message:
+          'Exchange rate API key is not configured. Provide a manual exchange rate or set EXCHANGE_RATE_API_KEY.',
+      });
     }
 
     const url = `${baseUrl}/${apiKey}/pair/${from}/${to}`;
@@ -81,25 +83,28 @@ export class CurrencyService {
             this.logger.error(
               `Exchange rate API error: ${error.message}`,
             );
-            throw new BadRequestException(
-              `Failed to fetch exchange rate from ${from} to ${to}. Please provide a manual rate or try again later.`,
-            );
+            throw new BadRequestException({
+              code: 'EXCHANGE_RATE_FETCH_FAILED',
+              message: `Failed to fetch exchange rate from ${from} to ${to}. Please provide a manual rate or try again later.`,
+            });
           }),
         ),
       );
 
       if (data.result !== 'success' || !data.conversion_rate) {
-        throw new BadRequestException(
-          `Exchange rate API returned an error for ${from} -> ${to}. Provide a manual rate.`,
-        );
+        throw new BadRequestException({
+          code: 'EXCHANGE_RATE_UNAVAILABLE',
+          message: `Exchange rate API returned an error for ${from} -> ${to}. Provide a manual rate.`,
+        });
       }
 
       return data.conversion_rate;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      throw new BadRequestException(
-        `Failed to convert from ${from} to ${to}. Provide a manual rate.`,
-      );
+      throw new BadRequestException({
+        code: 'CURRENCY_CONVERSION_FAILED',
+        message: `Failed to convert from ${from} to ${to}. Provide a manual rate.`,
+      });
     }
   }
 }
