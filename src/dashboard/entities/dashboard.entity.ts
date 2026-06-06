@@ -16,8 +16,12 @@ export class ActivityItemEntity {
   @ApiProperty()
   tripId: string;
 
-  @ApiProperty()
-  date: Date;
+  @ApiProperty({
+    format: 'date-time',
+    example: '2026-06-06T14:30:00.000Z',
+    description: 'Fecha del item de actividad en ISO 8601 UTC.',
+  })
+  date: string;
 }
 
 export class DashboardEntity {

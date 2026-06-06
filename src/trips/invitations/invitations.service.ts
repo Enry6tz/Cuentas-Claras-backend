@@ -41,30 +41,40 @@ export class InvitationsService {
     await this.assertIsCreator(tripId, actorId);
 
     if (role === ParticipationRole.CREATOR) {
-      throw new BadRequestException('No puedes invitar con el rol de creador');
+      throw new BadRequestException({
+        code: 'CANNOT_INVITE_AS_CREATOR',
+        message: 'No puedes invitar con el rol de creador',
+      });
     }
 
     const invitee = await this.prisma.user.findUnique({
       where: { id: inviteeId },
     });
     if (!invitee) {
-      throw new NotFoundException('Usuario no encontrado');
+      throw new NotFoundException({
+        code: 'USER_NOT_FOUND',
+        message: 'Usuario no encontrado',
+      });
     }
 
     const existingParticipation = await this.prisma.participation.findUnique({
       where: { userId_tripId: { userId: inviteeId, tripId } },
     });
     if (existingParticipation) {
-      throw new ConflictException('El usuario ya participa en este viaje');
+      throw new ConflictException({
+        code: 'USER_ALREADY_PARTICIPANT',
+        message: 'El usuario ya participa en este viaje',
+      });
     }
 
     const existingInvitation = await this.prisma.invitation.findFirst({
       where: { tripId, inviteeId, status: InvitationStatus.PENDING },
     });
     if (existingInvitation) {
-      throw new ConflictException(
-        'Ya existe una invitación pendiente para este usuario',
-      );
+      throw new ConflictException({
+        code: 'INVITATION_ALREADY_PENDING',
+        message: 'Ya existe una invitación pendiente para este usuario',
+      });
     }
 
     return this.prisma.invitation.create({
@@ -115,7 +125,10 @@ export class InvitationsService {
       where: { userId_tripId: { userId, tripId: invitation.tripId } },
     });
     if (existingParticipation) {
-      throw new ConflictException('Ya participas en este viaje');
+      throw new ConflictException({
+        code: 'ALREADY_PARTICIPANT',
+        message: 'Ya participas en este viaje',
+      });
     }
 
     // En una transacción: marcar la invitación como aceptada y crear la
@@ -152,10 +165,16 @@ export class InvitationsService {
       where: { id: invitationId },
     });
     if (!invitation || invitation.tripId !== tripId) {
-      throw new NotFoundException('Invitación no encontrada');
+      throw new NotFoundException({
+        code: 'INVITATION_NOT_FOUND',
+        message: 'Invitación no encontrada',
+      });
     }
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestException('La invitación ya no está pendiente');
+      throw new BadRequestException({
+        code: 'INVITATION_NOT_PENDING',
+        message: 'La invitación ya no está pendiente',
+      });
     }
 
     return this.prisma.invitation.update({
@@ -176,13 +195,22 @@ export class InvitationsService {
       where: { id: invitationId },
     });
     if (!invitation) {
-      throw new NotFoundException('Invitación no encontrada');
+      throw new NotFoundException({
+        code: 'INVITATION_NOT_FOUND',
+        message: 'Invitación no encontrada',
+      });
     }
     if (invitation.inviteeId !== userId) {
-      throw new ForbiddenException('Esta invitación no es para ti');
+      throw new ForbiddenException({
+        code: 'INVITATION_NOT_FOR_YOU',
+        message: 'Esta invitación no es para ti',
+      });
     }
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestException('La invitación ya no está pendiente');
+      throw new BadRequestException({
+        code: 'INVITATION_NOT_PENDING',
+        message: 'La invitación ya no está pendiente',
+      });
     }
     return invitation;
   }
@@ -192,7 +220,10 @@ export class InvitationsService {
       where: { id: tripId },
     });
     if (!trip || trip.deletedAt) {
-      throw new NotFoundException('Viaje no encontrado');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Viaje no encontrado',
+      });
     }
   }
 
@@ -202,7 +233,10 @@ export class InvitationsService {
       select: { status: true },
     });
     if (trip?.status === TripStatus.FINALIZED) {
-      throw new BadRequestException('El viaje está finalizado');
+      throw new BadRequestException({
+        code: 'TRIP_FINISHED',
+        message: 'El viaje está finalizado',
+      });
     }
   }
 
@@ -211,12 +245,16 @@ export class InvitationsService {
       where: { userId_tripId: { userId, tripId } },
     });
     if (!participation) {
-      throw new ForbiddenException('No eres participante de este viaje');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'No eres participante de este viaje',
+      });
     }
     if (participation.role !== ParticipationRole.CREATOR) {
-      throw new ForbiddenException(
-        'Solo el creador del viaje puede realizar esta acción',
-      );
+      throw new ForbiddenException({
+        code: 'ONLY_CREATOR_ALLOWED',
+        message: 'Solo el creador del viaje puede realizar esta acción',
+      });
     }
   }
 }

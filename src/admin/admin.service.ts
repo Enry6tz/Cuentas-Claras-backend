@@ -37,7 +37,10 @@ export class AdminService {
     });
 
     if (!trip) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
 
     return trip;
@@ -49,7 +52,10 @@ export class AdminService {
     });
 
     if (!trip) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
 
     const data: Prisma.TripUpdateInput = {};
@@ -85,7 +91,10 @@ export class AdminService {
     });
 
     if (!trip) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
 
     await this.prisma.trip.update({

@@ -147,12 +147,18 @@ export class TripsService {
     });
 
     if (!trip) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
 
     const isParticipant = trip.participations.some((p) => p.userId === userId);
     if (!isParticipant) {
-      throw new ForbiddenException('You are not a participant of this trip');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'You are not a participant of this trip',
+      });
     }
 
     return trip;
@@ -241,15 +247,24 @@ export class TripsService {
     //   - Hay participation pero no es CREATOR -> 403
     //   - Hay participation CREATOR pero el trip esta soft-deleted -> 404
     if (!participation) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
     if (participation.role !== ParticipationRole.CREATOR) {
-      throw new ForbiddenException('Only the trip creator can perform this action');
+      throw new ForbiddenException({
+        code: 'ONLY_CREATOR_ALLOWED',
+        message: 'Only the trip creator can perform this action',
+      });
     }
 
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip || trip.deletedAt) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
   }
 }
