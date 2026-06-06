@@ -42,11 +42,7 @@ export class ExpenseDetailsService {
         new Decimal(0),
       );
       if (totalPaid.sub(new Decimal(dto.originalAmount)).abs().gt(new Decimal('0.01'))) {
-        throw new BadRequestException(
-          `Sum of amountPaid (${totalPaid}) must equal originalAmount (${dto.originalAmount})`,
-        );
-      if (Math.abs(totalPaid - dto.originalAmount) > 0.01) {
-        throw new NotFoundException({
+        throw new BadRequestException({
           code: 'AMOUNT_PAID_MISMATCH',
           message: `Sum of amountPaid (${totalPaid}) must equal originalAmount (${dto.originalAmount})`,
         });
@@ -273,9 +269,9 @@ export class ExpenseDetailsService {
     });
 
     if (!participation) {
-      throw new NotFoundException({
-        code: 'TRIP_NOT_FOUND',
-        message: 'Trip not found',
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'You are not a participant of this trip',
       });
     }
 
@@ -436,21 +432,21 @@ export class ExpenseDetailsService {
     const owes = new Map<string, Decimal>();
 
     if (!dto.exactShares) {
-  throw new BadRequestException({
-    code: 'EXACT_SHARES_REQUIRED',
-    message: 'exactShares is required for EXACT split',
-  });
-}
-const totalExact = dto.exactShares.reduce(
-  (sum, s) => sum.add(new Decimal(s.amountOwed)),
-  new Decimal(0),
-);
-if (totalExact.sub(new Decimal(baseAmount)).abs().gt(new Decimal('0.01'))) {
-  throw new BadRequestException({
-    code: 'EXACT_SHARES_MISMATCH',
-    message: `Sum of exactShares (${totalExact}) must equal baseAmount (${baseAmount})`,
-  });
-}
+      throw new BadRequestException({
+        code: 'EXACT_SHARES_REQUIRED',
+        message: 'exactShares is required for EXACT split',
+      });
+    }
+    const totalExact = dto.exactShares.reduce(
+      (sum, s) => sum.add(new Decimal(s.amountOwed)),
+      new Decimal(0),
+    );
+    if (totalExact.sub(new Decimal(baseAmount)).abs().gt(new Decimal('0.01'))) {
+      throw new BadRequestException({
+        code: 'EXACT_SHARES_MISMATCH',
+        message: `Sum of exactShares (${totalExact}) must equal baseAmount (${baseAmount})`,
+      });
+    }
 
     for (const share of dto.exactShares) {
       owes.set(share.userId, new Decimal(share.amountOwed));
@@ -466,7 +462,7 @@ if (totalExact.sub(new Decimal(baseAmount)).abs().gt(new Decimal('0.01'))) {
     const owes = new Map<string, Decimal>();
 
     if (!dto.percentShares) {
-      throw new NotFoundException({
+      throw new BadRequestException({
         code: 'PERCENT_SHARES_REQUIRED',
         message: 'percentShares is required for PERCENT split',
       });
@@ -474,7 +470,7 @@ if (totalExact.sub(new Decimal(baseAmount)).abs().gt(new Decimal('0.01'))) {
 
     const totalPercent = dto.percentShares.reduce((sum, s) => sum + s.percent, 0);
     if (Math.abs(totalPercent - 100) > 0.01) {
-      throw new NotFoundException({
+      throw new BadRequestException({
         code: 'PERCENT_SHARES_MISMATCH',
         message: `Sum of percentShares (${totalPercent}) must equal 100`,
       });
