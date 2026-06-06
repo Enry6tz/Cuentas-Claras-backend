@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ExpenseSplitType, ParticipationRole, Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+import { ExpenseSplitType, ParticipationRole, TripStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
 import { BalancesService } from '../balances/balances.service';
@@ -35,9 +37,12 @@ export class ExpenseDetailsService {
       const allUserIds = this.getAllReferencedUserIds(dto);
       const participants = await this.assertAllAreParticipants(tripId, allUserIds);
 
-      const totalPaid = dto.payers.reduce((sum, p) => sum + p.amountPaid, 0);
-      if (Math.abs(totalPaid - dto.originalAmount) > 0.01) {
-        throw new NotFoundException(
+      const totalPaid = dto.payers.reduce(
+        (sum, p) => sum.add(new Decimal(p.amountPaid)),
+        new Decimal(0),
+      );
+      if (totalPaid.sub(new Decimal(dto.originalAmount)).abs().gt(new Decimal('0.01'))) {
+        throw new BadRequestException(
           `Sum of amountPaid (${totalPaid}) must equal originalAmount (${dto.originalAmount})`,
         );
       }
@@ -242,14 +247,16 @@ export class ExpenseDetailsService {
   }
 
   private async assertCanCreate(userId: string, tripId: string) {
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip || trip.deletedAt) throw new NotFoundException('Trip not found');
+    if (trip.status === TripStatus.FINALIZED) {
+      throw new BadRequestException('No se pueden agregar gastos a un viaje finalizado');
+    }
+
     const participation = await this.prisma.participation.findUnique({
       where: { userId_tripId: { userId, tripId } },
     });
-
-    if (!participation) {
-      throw new NotFoundException('Trip not found');
-    }
-
+    if (!participation) throw new ForbiddenException('You are not a participant of this trip');
     if (participation.role === ParticipationRole.SUPERVISOR) {
       throw new ForbiddenException('Supervisors cannot create expenses');
     }
@@ -326,14 +333,14 @@ export class ExpenseDetailsService {
     dto: CreateExpenseDto,
     baseAmount: number,
     exchangeRate: number,
-  ): { userId: string; amountPaid: number; amountOwed: number }[] {
-    const payerMap = new Map<string, number>();
+  ): { userId: string; amountPaid: Decimal; amountOwed: Decimal }[] {
+    const payerMap = new Map<string, Decimal>();
     for (const payer of dto.payers) {
-      const basePaid = Math.round(payer.amountPaid * exchangeRate * 100) / 100;
-      payerMap.set(payer.userId, (payerMap.get(payer.userId) ?? 0) + basePaid);
+      const basePaid = new Decimal(payer.amountPaid).mul(new Decimal(exchangeRate)).toDecimalPlaces(2);
+      payerMap.set(payer.userId, (payerMap.get(payer.userId) ?? new Decimal(0)).add(basePaid));
     }
 
-    let owes: Map<string, number>;
+    let owes: Map<string, Decimal>;
 
     switch (splitType) {
       case ExpenseSplitType.EQUAL:
@@ -352,13 +359,13 @@ export class ExpenseDetailsService {
       ...Array.from(owes.keys()),
     ]);
 
-    const details: { userId: string; amountPaid: number; amountOwed: number }[] = [];
+    const details: { userId: string; amountPaid: Decimal; amountOwed: Decimal }[] = [];
 
     for (const userId of allUserIds) {
       details.push({
         userId,
-        amountPaid: payerMap.get(userId) ?? 0,
-        amountOwed: owes.get(userId) ?? 0,
+        amountPaid: payerMap.get(userId) ?? new Decimal(0),
+        amountOwed: owes.get(userId) ?? new Decimal(0),
       });
     }
 
@@ -368,21 +375,21 @@ export class ExpenseDetailsService {
   private splitEqual(
     participantIds: string[],
     baseAmount: number,
-  ): Map<string, number> {
-    const owes = new Map<string, number>();
+  ): Map<string, Decimal> {
+    const owes = new Map<string, Decimal>();
     const n = participantIds.length;
 
     if (n === 0) return owes;
 
-    const perPerson = Math.floor((baseAmount * 100) / n) / 100;
-    const totalAllocated = perPerson * n;
-    let residual = Math.round((baseAmount - totalAllocated) * 100) / 100;
+    const base = new Decimal(baseAmount);
+    const perPerson = base.div(n).toDecimalPlaces(2, Decimal.ROUND_FLOOR);
+    let residual = base.sub(perPerson.mul(n));
 
     for (const id of participantIds) {
       let amount = perPerson;
-      if (residual > 0.005) {
-        amount = Math.round((amount + 0.01) * 100) / 100;
-        residual = Math.round((residual - 0.01) * 100) / 100;
+      if (residual.gt(new Decimal('0.005'))) {
+        amount = perPerson.add(new Decimal('0.01'));
+        residual = residual.sub(new Decimal('0.01'));
       }
       owes.set(id, amount);
     }
@@ -393,22 +400,25 @@ export class ExpenseDetailsService {
   private splitExact(
     dto: CreateExpenseDto,
     baseAmount: number,
-  ): Map<string, number> {
-    const owes = new Map<string, number>();
+  ): Map<string, Decimal> {
+    const owes = new Map<string, Decimal>();
 
     if (!dto.exactShares) {
-      throw new NotFoundException('exactShares is required for EXACT split');
+      throw new BadRequestException('exactShares is required for EXACT split');
     }
 
-    const totalExact = dto.exactShares.reduce((sum, s) => sum + s.amountOwed, 0);
-    if (Math.abs(totalExact - baseAmount) > 0.01) {
-      throw new NotFoundException(
+    const totalExact = dto.exactShares.reduce(
+      (sum, s) => sum.add(new Decimal(s.amountOwed)),
+      new Decimal(0),
+    );
+    if (totalExact.sub(new Decimal(baseAmount)).abs().gt(new Decimal('0.01'))) {
+      throw new BadRequestException(
         `Sum of exactShares (${totalExact}) must equal baseAmount (${baseAmount})`,
       );
     }
 
     for (const share of dto.exactShares) {
-      owes.set(share.userId, share.amountOwed);
+      owes.set(share.userId, new Decimal(share.amountOwed));
     }
 
     return owes;
@@ -417,31 +427,33 @@ export class ExpenseDetailsService {
   private splitPercent(
     dto: CreateExpenseDto,
     baseAmount: number,
-  ): Map<string, number> {
-    const owes = new Map<string, number>();
+  ): Map<string, Decimal> {
+    const owes = new Map<string, Decimal>();
 
     if (!dto.percentShares) {
-      throw new NotFoundException('percentShares is required for PERCENT split');
+      throw new BadRequestException('percentShares is required for PERCENT split');
     }
 
     const totalPercent = dto.percentShares.reduce((sum, s) => sum + s.percent, 0);
     if (Math.abs(totalPercent - 100) > 0.01) {
-      throw new NotFoundException(
+      throw new BadRequestException(
         `Sum of percentShares (${totalPercent}) must equal 100`,
       );
     }
 
-    let totalAllocated = 0;
+    const base = new Decimal(baseAmount);
+    let totalAllocated = new Decimal(0);
+
     for (let i = 0; i < dto.percentShares.length; i++) {
       const share = dto.percentShares[i];
       const isLast = i === dto.percentShares.length - 1;
 
-      let amount: number;
+      let amount: Decimal;
       if (isLast) {
-        amount = Math.round((baseAmount - totalAllocated) * 100) / 100;
+        amount = base.sub(totalAllocated).toDecimalPlaces(2);
       } else {
-        amount = Math.round((baseAmount * share.percent / 100) * 100) / 100;
-        totalAllocated = Math.round((totalAllocated + amount) * 100) / 100;
+        amount = base.mul(share.percent).div(100).toDecimalPlaces(2);
+        totalAllocated = totalAllocated.add(amount);
       }
 
       owes.set(share.userId, amount);

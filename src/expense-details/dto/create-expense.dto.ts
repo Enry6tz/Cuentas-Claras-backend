@@ -50,10 +50,11 @@ export class CreateExpensePercentShareDto {
 }
 
 export class CreateExpenseDto {
-  @ApiProperty({ example: 'Cena en el restaurante' })
+  @ApiPropertyOptional({ example: 'Cena en el restaurante' })
+  @IsOptional()
   @IsString()
   @MaxLength(500)
-  description!: string;
+  description?: string;
 
   @ApiProperty({ example: 100, description: 'Original amount in the original currency' })
   @IsNumber()
