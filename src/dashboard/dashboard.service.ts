@@ -29,7 +29,7 @@ export class DashboardService {
       amount: e.baseAmount?.toString() ?? e.originalAmount.toString(),
       tripName: e.trip.name,
       tripId: e.trip.id,
-      date: e.date,
+      date: e.date.toISOString(),
     }));
 
     return {

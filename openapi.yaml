@@ -1,0 +1,2520 @@
+openapi: 3.0.0
+paths:
+  /auth/webhook:
+    post:
+      description: >-
+        Endpoint público para recibir webhooks de Clerk (user.created,
+        user.updated, user.deleted). Verificado con Svix.
+      operationId: AuthController_handleWebhook
+      parameters:
+        - name: svix-signature
+          in: header
+          description: Firma Svix para verificar la autenticidad del payload.
+          required: true
+          schema:
+            type: string
+        - name: svix-timestamp
+          in: header
+          description: Timestamp del mensaje Svix.
+          required: true
+          schema:
+            type: string
+        - name: svix-id
+          in: header
+          description: ID del mensaje Svix (firma del webhook de Clerk).
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: >-
+          Payload crudo (raw JSON) del evento de Clerk. Se verifica con Svix;
+          tipos soportados: user.created, user.updated, user.deleted.
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                type: user.created
+                data:
+                  id: user_2abc...
+                  email_addresses:
+                    - email_address: usuario@mail.com
+                  first_name: Ada
+                  last_name: Lovelace
+                  image_url: https://img.clerk.com/...
+      responses:
+        '200':
+          description: Webhook processed successfully.
+        '400':
+          description: Missing svix headers or invalid signature.
+        '500':
+          description: Webhook secret not configured or sync failed.
+      summary: Handle Clerk webhook events
+      tags:
+        - Auth
+  /users/me:
+    get:
+      description: Devuelve el perfil del usuario autenticado.
+      operationId: UsersController_getProfile
+      parameters: []
+      responses:
+        '200':
+          description: User profile.
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Get current user profile
+      tags:
+        - Users
+    patch:
+      description: >-
+        Actualiza el perfil del usuario autenticado. Por ahora solo permite
+        cambiar el nombre.
+      operationId: UsersController_updateProfile
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserDto'
+      responses:
+        '200':
+          description: Profile updated.
+        '400':
+          description: Body inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Update current user profile
+      tags:
+        - Users
+  /users/search:
+    get:
+      description: >-
+        Busca usuarios registrados por email. Case-insensitive, máximo 10
+        resultados.
+      operationId: UsersController_search
+      parameters:
+        - name: q
+          required: false
+          in: query
+          description: Término de búsqueda (email)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de usuarios encontrados.
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Search users by email
+      tags:
+        - Users
+  /trips:
+    get:
+      description: >-
+        Devuelve todos los trips donde el usuario autenticado es participante
+        (CREATOR, SUPERVISOR o MEMBER). Excluye trips soft-deleted. Cada trip
+        viene con `_count` (cantidad de participantes y gastos).
+      operationId: TripsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: Lista de trips ordenada por createdAt desc.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TripEntity'
+        '401':
+          description: Falta JWT, esta vencido, o es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Listar mis trips
+      tags:
+        - Trips
+    post:
+      description: >-
+        Crea un trip y registra al usuario autenticado como `CREATOR` (rol unico
+        por trip). Operacion atomica: Trip + Participation se crean en la misma
+        transaccion.
+      operationId: TripsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTripDto'
+      responses:
+        '201':
+          description: >-
+            Trip creado. La respuesta incluye el primer participante (yo, como
+            CREATOR).
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TripEntity'
+        '400':
+          description: Body invalido (campos faltantes, formato incorrecto, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, esta vencido, o es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Crear un trip
+      tags:
+        - Trips
+  /trips/{id}:
+    get:
+      description: >-
+        Devuelve el trip con la lista completa de participantes (incluye datos
+        publicos del User). Falla con 403 si el usuario no es participante, o
+        404 si el trip no existe o esta soft-deleted.
+      operationId: TripsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID del trip
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Trip encontrado, con participantes y datos de cada uno.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TripEntity'
+        '400':
+          description: El parametro `id` no es un UUID valido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, esta vencido, o es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: No sos participante de este trip.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe trip con ese id (o esta soft-deleted).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Detalle de un trip
+      tags:
+        - Trips
+    patch:
+      description: >-
+        Solo el `CREATOR` del trip puede actualizarlo (BR02). Permite cambiar
+        nombre, descripcion, fechas, baseCurrency, y/o status (ACTIVE <->
+        FINALIZED). Todos los campos del body son opcionales.
+      operationId: TripsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTripDto'
+      responses:
+        '200':
+          description: Trip actualizado.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TripEntity'
+        '400':
+          description: Body invalido o `id` mal formado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, esta vencido, o es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: No sos CREATOR del trip (BR02).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe trip con ese id, o esta soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Actualizar un trip
+      tags:
+        - Trips
+    delete:
+      description: >-
+        Solo el `CREATOR` puede eliminar (BR02). Implementacion soft-delete:
+        setea `deletedAt = NOW()`. Los datos del trip (participaciones, gastos,
+        pagos) NO se borran, solo se ocultan de los listados.
+      operationId: TripsController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Trip eliminado (soft). Sin body en la respuesta.
+        '400':
+          description: El parametro `id` no es un UUID valido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, esta vencido, o es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: No sos CREATOR del trip (BR02).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe trip con ese id, o ya estaba soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Eliminar (soft delete) un trip
+      tags:
+        - Trips
+  /trips/{tripId}/participants:
+    get:
+      description: >-
+        Devuelve la lista de integrantes del viaje con su rol, balance y datos
+        públicos del usuario. Requiere ser participante del viaje.
+      operationId: ParticipantsController_findAll
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          description: UUID del viaje
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Lista de integrantes.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParticipantEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: No eres participante de este viaje.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Listar integrantes del viaje
+      tags:
+        - Participants
+  /trips/{tripId}/participants/{userId}:
+    patch:
+      description: >-
+        Cambia el rol de un integrante (SUPERVISOR o MEMBER). Solo el CREATOR
+        puede cambiar roles.
+      operationId: ParticipantsController_changeRole
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: userId
+          required: true
+          in: path
+          description: UUID del integrante
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRoleDto'
+      responses:
+        '200':
+          description: Rol actualizado.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ParticipantEntity'
+        '400':
+          description: Body inválido o no puedes cambiar tu propio rol siendo CREATOR.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Solo el creador del viaje puede realizar esta acción.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje o integrante no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Cambiar rol de un integrante
+      tags:
+        - Participants
+    delete:
+      description: >-
+        Quita a un integrante del viaje. Solo el CREATOR puede quitar. El
+        balance del integrante debe ser 0.
+      operationId: ParticipantsController_remove
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Integrante eliminado.
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Solo el creador del viaje puede realizar esta acción.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje o integrante no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '409':
+          description: No se puede quitar porque el balance no es 0.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Quitar integrante del viaje
+      tags:
+        - Participants
+  /trips/{tripId}/participants/me:
+    delete:
+      description: >-
+        El usuario autenticado abandona el viaje. El balance debe ser 0. El
+        CREATOR no puede abandonar.
+      operationId: ParticipantsController_leave
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Has abandonado el viaje.
+        '400':
+          description: El creador no puede abandonar el viaje.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: No eres participante de este viaje.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '409':
+          description: No puedes abandonar porque tu balance no es 0.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Abandonar el viaje
+      tags:
+        - Participants
+  /trips/{tripId}/invitations:
+    get:
+      description: >-
+        Devuelve las invitaciones del viaje (pendientes e históricas) con datos
+        del invitado y de quien invitó. Solo el CREATOR puede verlas.
+      operationId: InvitationsController_findAll
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Lista de invitaciones.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InvitationEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Solo el creador del viaje puede realizar esta acción.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Listar invitaciones del viaje
+      tags:
+        - Invitations
+    post:
+      description: >-
+        Crea una invitación pendiente para un usuario registrado, con el rol
+        indicado (MEMBER o SUPERVISOR). El usuario recién se une al viaje cuando
+        acepta. Solo el CREATOR puede invitar.
+      operationId: InvitationsController_create
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationDto'
+      responses:
+        '201':
+          description: Invitación creada.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InvitationEntity'
+        '400':
+          description: Body inválido, viaje finalizado o rol inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Solo el creador del viaje puede realizar esta acción.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje o usuario no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '409':
+          description: >-
+            El usuario ya participa en el viaje o ya tiene una invitación
+            pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Invitar a un usuario al viaje
+      tags:
+        - Invitations
+  /trips/{tripId}/invitations/{invitationId}:
+    delete:
+      description: >-
+        Cancela una invitación que aún está pendiente. Solo el CREATOR puede
+        cancelarla.
+      operationId: InvitationsController_cancel
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: invitationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Invitación cancelada.
+        '400':
+          description: La invitación ya no está pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Solo el creador del viaje puede realizar esta acción.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Viaje o invitación no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Cancelar una invitación pendiente
+      tags:
+        - Invitations
+  /invitations:
+    get:
+      description: >-
+        Devuelve las invitaciones PENDING recibidas por el usuario autenticado,
+        con el viaje y quién invitó.
+      operationId: MyInvitationsController_findMine
+      parameters: []
+      responses:
+        '200':
+          description: Lista de invitaciones pendientes.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InvitationEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Listar mis invitaciones pendientes
+      tags:
+        - Invitations
+  /invitations/{invitationId}/accept:
+    post:
+      description: >-
+        Acepta una invitación pendiente. Crea la participación en el viaje con
+        el rol indicado en la invitación.
+      operationId: MyInvitationsController_accept
+      parameters:
+        - name: invitationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '201':
+          description: Invitación aceptada; devuelve la nueva participación.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ParticipantEntity'
+        '400':
+          description: La invitación ya no está pendiente o el viaje está finalizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Esta invitación no es para ti.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Invitación o viaje no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '409':
+          description: Ya participas en este viaje.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Aceptar una invitación
+      tags:
+        - Invitations
+  /invitations/{invitationId}/reject:
+    post:
+      description: Rechaza una invitación pendiente recibida.
+      operationId: MyInvitationsController_reject
+      parameters:
+        - name: invitationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Invitación rechazada.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InvitationEntity'
+        '400':
+          description: La invitación ya no está pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Esta invitación no es para ti.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Invitación no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Rechazar una invitación
+      tags:
+        - Invitations
+  /trips/{tripId}/expenses:
+    get:
+      description: >-
+        Returns all non-deleted expenses for the trip, ordered by date
+        descending.
+      operationId: ExpensesController_findAll
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: List of expenses.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExpenseEntity'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Trip not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: List expenses in a trip
+      tags:
+        - Expenses
+    post:
+      description: >-
+        Creates a new expense with split between participants. Supports
+        EQUAL/EXACT/PERCENT split types. Multi-currency with automatic exchange
+        rate conversion.
+      operationId: ExpensesController_create
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseDto'
+      responses:
+        '201':
+          description: Expense created.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ExpenseEntity'
+        '400':
+          description: >-
+            Invalid body (validation error, invalid split, or conversion
+            failure).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not authorized to create expenses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Trip or user not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Create an expense
+      tags:
+        - Expenses
+  /trips/{tripId}/expenses/{id}:
+    get:
+      description: >-
+        Returns a single expense with all its details (per-participant
+        breakdown).
+      operationId: ExpensesController_findOne
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Expense detail.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ExpenseEntity'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Expense not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Get expense detail
+      tags:
+        - Expenses
+    delete:
+      description: >-
+        Soft-deletes the expense. Only the expense creator or trip creator can
+        delete. Triggers balance recalculation.
+      operationId: ExpensesController_remove
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Expense deleted.
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not authorized to delete this expense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Expense not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Delete (soft-delete) an expense
+      tags:
+        - Expenses
+  /me/expenses:
+    get:
+      description: >-
+        Paginated list of expenses from all trips where the user participates.
+        Supports filters: tripId, category, q (description), from, to.
+      operationId: MyExpensesController_findMine
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Número de página (1-based)
+          schema:
+            minimum: 1
+            default: 1
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Tamaño de página
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 10
+            type: number
+        - name: tripId
+          required: false
+          in: query
+          description: Filtrar por un viaje puntual
+          schema:
+            format: uuid
+            type: string
+        - name: category
+          required: false
+          in: query
+          description: Filtrar por categoría
+          schema:
+            type: string
+        - name: q
+          required: false
+          in: query
+          description: Busca en la descripción del gasto
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: Desde (inclusive), YYYY-MM-DD
+          schema:
+            format: date
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Hasta (inclusive), YYYY-MM-DD
+          schema:
+            format: date
+            type: string
+      responses:
+        '200':
+          description: Paginated list of expenses.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ExpenseEntity'
+                      total:
+                        type: number
+                        example: 42
+                      page:
+                        type: number
+                        example: 1
+                      limit:
+                        type: number
+                        example: 10
+                      hasMore:
+                        type: boolean
+                        example: true
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: List the current user expenses across all their trips
+      tags:
+        - Expenses
+  /currency/rate:
+    get:
+      description: >-
+        Fetches the current exchange rate between two currencies. Results are
+        cached for the configured TTL (default 1 hour).
+      operationId: CurrencyController_getRate
+      parameters:
+        - name: from
+          required: true
+          in: query
+          description: Source currency code (ISO 4217)
+          schema:
+            example: USD
+            type: string
+        - name: to
+          required: true
+          in: query
+          description: Target currency code (ISO 4217)
+          schema:
+            example: ARS
+            type: string
+      responses:
+        '200':
+          description: Exchange rate information.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      from:
+                        type: string
+                        example: USD
+                      to:
+                        type: string
+                        example: ARS
+                      rate:
+                        type: number
+                        example: 1200.5
+        '401':
+          description: Missing or invalid JWT.
+      security:
+        - bearer: []
+      summary: Get current exchange rate
+      tags:
+        - Currency
+  /trips/{tripId}/balances:
+    get:
+      description: >-
+        Returns the net balance for each participant in the trip. Positive
+        balance means others owe them; negative means they owe others.
+      operationId: BalancesController_getBalances
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: List of balances.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BalanceEntryEntity'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Trip not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Get balances per participant
+      tags:
+        - Balances
+  /trips/{tripId}/balances/settlement:
+    get:
+      description: >-
+        Returns the minimum number of transfers needed to settle all debts
+        (greedy min-cash-flow algorithm).
+      operationId: BalancesController_getSettlement
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Suggested transfers.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SettlementSuggestionEntity'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Trip not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Get settlement suggestions
+      tags:
+        - Balances
+  /trips/{tripId}/payments:
+    get:
+      description: >-
+        Returns all non-deleted payments for the trip, ordered by date
+        descending.
+      operationId: PaymentsController_findAll
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: List of payments.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentEntity'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not a participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Trip not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: List payments in a trip
+      tags:
+        - Payments
+    post:
+      description: >-
+        Registers a transfer from debtor to creditor. Both must be trip
+        participants. Triggers balance recalculation.
+      operationId: PaymentsController_create
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentDto'
+      responses:
+        '201':
+          description: Payment recorded.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentEntity'
+        '400':
+          description: Invalid body (debtor=creditor, amount invalid, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not authorized to create payments.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Trip or participant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Record a payment
+      tags:
+        - Payments
+  /trips/{tripId}/payments/{id}:
+    delete:
+      description: >-
+        Soft-deletes the payment. Only the debtor or trip creator can delete.
+        Triggers balance recalculation.
+      operationId: PaymentsController_remove
+      parameters:
+        - name: tripId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Payment deleted.
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Not authorized to delete this payment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: Payment not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Delete (soft-delete) a payment
+      tags:
+        - Payments
+  /me/payments:
+    get:
+      description: >-
+        Paginated list of payments from all trips where the user participates.
+        Supports filters: tripId, role (debtor/creditor), q (note), from, to.
+      operationId: MyPaymentsController_findMine
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Número de página (1-based)
+          schema:
+            minimum: 1
+            default: 1
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Tamaño de página
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 10
+            type: number
+        - name: tripId
+          required: false
+          in: query
+          description: Filtrar por un viaje puntual
+          schema:
+            format: uuid
+            type: string
+        - name: role
+          required: false
+          in: query
+          description: >-
+            Acota a pagos donde el usuario es deudor (pagó) o acreedor (cobró).
+            Sin valor: todos los pagos de sus viajes.
+          schema:
+            type: string
+            enum:
+              - debtor
+              - creditor
+        - name: q
+          required: false
+          in: query
+          description: Busca en la nota del pago
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: Desde (inclusive), YYYY-MM-DD
+          schema:
+            format: date
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Hasta (inclusive), YYYY-MM-DD
+          schema:
+            format: date
+            type: string
+      responses:
+        '200':
+          description: Paginated list of payments.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PaymentEntity'
+                      total:
+                        type: number
+                        example: 42
+                      page:
+                        type: number
+                        example: 1
+                      limit:
+                        type: number
+                        example: 10
+                      hasMore:
+                        type: boolean
+                        example: true
+        '401':
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: List the current user payments across all their trips
+      tags:
+        - Payments
+  /:
+    get:
+      operationId: HealthController_root
+      parameters: []
+      responses:
+        '200':
+          description: El servicio está arriba.
+          content:
+            application/json:
+              schema:
+                example:
+                  status: ok
+                  service: Cuentas Claras API
+      summary: Root — basic status
+      tags:
+        - Health
+  /health:
+    get:
+      operationId: HealthController_check
+      parameters: []
+      responses:
+        '200':
+          description: Backend y base de datos respondiendo.
+          content:
+            application/json:
+              schema:
+                example:
+                  status: ok
+                  timestamp: '2026-06-06T14:30:00.000Z'
+                  db:
+                    status: ok
+                    responseTime: 12ms
+      summary: Health check — ping backend + Supabase DB
+      tags:
+        - Health
+  /dashboard:
+    get:
+      description: >-
+        Devuelve un resumen de los viajes del usuario, su balance total y
+        actividad reciente.
+      operationId: DashboardController_getDashboard
+      parameters: []
+      responses:
+        '200':
+          description: Dashboard data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Dashboard del usuario
+      tags:
+        - Dashboard
+  /admin/trips:
+    get:
+      description: >-
+        Devuelve todos los viajes del sistema sin filtrar por participación.
+        Solo accesible para administradores globales.
+      operationId: AdminController_getAllTrips
+      parameters: []
+      responses:
+        '200':
+          description: Lista de todos los viajes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TripEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Acceso denegado. Se requieren permisos de administrador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Listar todos los viajes (solo admin)
+      tags:
+        - Admin
+  /admin/trips/{id}:
+    get:
+      description: Devuelve el detalle de cualquier viaje sin requerir participación.
+      operationId: AdminController_getTripById
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID del viaje
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Detalle del viaje.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Acceso denegado. Se requieren permisos de administrador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe viaje con ese id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Detalle de un viaje (solo admin)
+      tags:
+        - Admin
+    patch:
+      description: Permite al administrador modificar cualquier viaje sin ser CREATOR.
+      operationId: AdminController_updateTrip
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTripDto'
+      responses:
+        '200':
+          description: Viaje actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripEntity'
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Acceso denegado. Se requieren permisos de administrador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe viaje con ese id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Actualizar cualquier viaje (solo admin)
+      tags:
+        - Admin
+    delete:
+      description: Permite al administrador eliminar cualquier viaje sin ser CREATOR.
+      operationId: AdminController_removeTrip
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '204':
+          description: Viaje eliminado (soft). Sin body.
+        '401':
+          description: Falta JWT, está vencido, o es inválido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: Acceso denegado. Se requieren permisos de administrador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe viaje con ese id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Eliminar (soft delete) cualquier viaje (solo admin)
+      tags:
+        - Admin
+info:
+  title: Cuentas Claras API
+  description: >-
+    API REST de Cuentas Claras: gestion de gastos compartidos en viajes (viajes,
+    participantes, gastos, pagos, saldos e invitaciones).
+  version: 1.0.0
+  contact: {}
+tags: []
+servers:
+  - url: http://localhost:3001
+    description: Local
+  - url: https://cuentas-claras-backend.onrender.com
+    description: Produccion
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    ErrorDetailDto:
+      type: object
+      properties:
+        code:
+          type: string
+          example: TRIP_NOT_FOUND
+          description: Codigo de negocio en SNAKE_UPPER_CASE.
+        message:
+          type: string
+          example: Trip not found
+          description: Mensaje legible para humanos / desarrollador.
+        details:
+          type: object
+          description: >-
+            Informacion adicional opcional. En errores de validacion contiene el
+            array de mensajes de cada campo.
+          example:
+            - name should not be empty
+      required:
+        - code
+        - message
+    ErrorResponseDto:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetailDto'
+      required:
+        - error
+    UpdateUserDto:
+      type: object
+      properties:
+        name:
+          type: string
+    UserPublicEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          example: b3f8c2e1-4a5d-4f7e-8c6d-9e0f1a2b3c4d
+          format: uuid
+        name:
+          type: string
+          example: Enrique Seitz
+        email:
+          type: string
+          example: enrique@example.com
+        avatarUrl:
+          type: object
+          example: https://img.clerk.com/abc123.jpeg
+          nullable: true
+      required:
+        - id
+        - name
+        - email
+    ParticipationEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - CREATOR
+            - SUPERVISOR
+            - MEMBER
+          example: MEMBER
+        currentBalance:
+          type: string
+          example: '0.00'
+          description: >-
+            Balance neto del participante en el trip, en la baseCurrency del
+            trip. Decimal serializado como string. Positivo = le deben. Negativo
+            = debe.
+        joinedAt:
+          type: string
+          example: '2026-05-03T18:42:00.000Z'
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserPublicEntity'
+      required:
+        - id
+        - userId
+        - tripId
+        - role
+        - currentBalance
+        - joinedAt
+    TripCountEntity:
+      type: object
+      properties:
+        participations:
+          type: number
+          example: 4
+        expenses:
+          type: number
+          example: 12
+      required:
+        - participations
+        - expenses
+    TripEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Bariloche 2026
+        description:
+          type: object
+          example: Semana en Bariloche con los chicos
+          nullable: true
+        startDate:
+          type: object
+          example: '2026-07-15'
+          format: date
+          nullable: true
+        endDate:
+          type: object
+          example: '2026-07-22'
+          format: date
+          nullable: true
+        baseCurrency:
+          type: string
+          example: ARS
+          description: ISO 4217 currency code
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - FINALIZED
+          example: ACTIVE
+        iconId:
+          type: object
+          example: 1
+          nullable: true
+          description: Id del emoji (1..30)
+        colorId:
+          type: object
+          example: 1
+          nullable: true
+          description: Id del color (1..30)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: object
+          format: date-time
+          nullable: true
+        participations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParticipationEntity'
+        _count:
+          $ref: '#/components/schemas/TripCountEntity'
+      required:
+        - id
+        - name
+        - description
+        - startDate
+        - endDate
+        - baseCurrency
+        - status
+        - iconId
+        - colorId
+        - createdAt
+        - updatedAt
+        - deletedAt
+    CreateTripDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Bariloche 2026
+          description: Nombre del viaje
+        description:
+          type: string
+          example: Semana en Bariloche con los chicos
+        startDate:
+          type: string
+          example: '2026-07-15'
+          description: ISO date (YYYY-MM-DD)
+        endDate:
+          type: string
+          example: '2026-07-22'
+          description: ISO date (YYYY-MM-DD)
+        baseCurrency:
+          type: string
+          example: ARS
+          description: ISO 4217 currency code (3 letters)
+        iconId:
+          type: number
+          example: 1
+          minimum: 1
+          maximum: 30
+          description: Id del emoji (1..30)
+        colorId:
+          type: number
+          example: 1
+          minimum: 1
+          maximum: 30
+          description: Id del color (1..30)
+      required:
+        - name
+        - baseCurrency
+    UpdateTripDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Bariloche 2026
+          description: Nombre del viaje
+        description:
+          type: string
+          example: Semana en Bariloche con los chicos
+        startDate:
+          type: string
+          example: '2026-07-15'
+          description: ISO date (YYYY-MM-DD)
+        endDate:
+          type: string
+          example: '2026-07-22'
+          description: ISO date (YYYY-MM-DD)
+        baseCurrency:
+          type: string
+          example: ARS
+          description: ISO 4217 currency code (3 letters)
+        iconId:
+          type: number
+          example: 1
+          minimum: 1
+          maximum: 30
+          description: Id del emoji (1..30)
+        colorId:
+          type: number
+          example: 1
+          minimum: 1
+          maximum: 30
+          description: Id del color (1..30)
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - FINALIZED
+          description: ACTIVE = acepta gastos/pagos. FINALIZED = solo lectura.
+    ParticipantEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - CREATOR
+            - SUPERVISOR
+            - MEMBER
+          example: MEMBER
+        currentBalance:
+          type: string
+          example: '0.00'
+          description: >-
+            Balance neto del participante en el viaje. Decimal serializado como
+            string.
+        joinedAt:
+          type: string
+          example: '2026-01-01T00:00:00.000Z'
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserPublicEntity'
+      required:
+        - id
+        - userId
+        - tripId
+        - role
+        - currentBalance
+        - joinedAt
+        - user
+    ChangeRoleDto:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+            - CREATOR
+            - SUPERVISOR
+            - MEMBER
+          description: Nuevo rol (SUPERVISOR o MEMBER)
+      required:
+        - role
+    InvitationEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        inviterId:
+          type: string
+          format: uuid
+        inviteeId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - CREATOR
+            - SUPERVISOR
+            - MEMBER
+          example: MEMBER
+        status:
+          type: string
+          enum:
+            - PENDING
+            - ACCEPTED
+            - REJECTED
+            - CANCELLED
+          example: PENDING
+        createdAt:
+          type: string
+          example: '2026-06-05T18:42:00.000Z'
+          format: date-time
+        respondedAt:
+          type: object
+          format: date-time
+          nullable: true
+        inviter:
+          $ref: '#/components/schemas/UserPublicEntity'
+        invitee:
+          $ref: '#/components/schemas/UserPublicEntity'
+        trip:
+          $ref: '#/components/schemas/TripEntity'
+      required:
+        - id
+        - tripId
+        - inviterId
+        - inviteeId
+        - role
+        - status
+        - createdAt
+        - respondedAt
+    CreateInvitationDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: ID del usuario registrado al que se invita
+          format: uuid
+        role:
+          type: string
+          enum:
+            - CREATOR
+            - SUPERVISOR
+            - MEMBER
+          description: Rol que tendrá la persona en el viaje (MEMBER o SUPERVISOR)
+          example: MEMBER
+      required:
+        - userId
+        - role
+    ExpenseDetailEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        expenseId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        amountPaid:
+          type: string
+          example: '50.00'
+          description: Amount paid by this user
+        amountOwed:
+          type: string
+          example: '25.00'
+          description: Amount owed by this user
+        user:
+          $ref: '#/components/schemas/UserPublicEntity'
+      required:
+        - id
+        - expenseId
+        - userId
+        - amountPaid
+        - amountOwed
+    ExpenseEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        creatorId:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        description:
+          type: object
+          example: Cena en el restaurante
+        originalAmount:
+          type: string
+          example: '100.00'
+        originalCurrency:
+          type: string
+          example: USD
+        exchangeRate:
+          type: object
+          example: '1200.50'
+          description: Snapshot exchange rate
+        baseAmount:
+          type: object
+          example: '120050.00'
+          description: Converted amount in base currency
+        splitType:
+          type: string
+          enum:
+            - EQUAL
+            - EXACT
+            - PERCENT
+          example: EQUAL
+        date:
+          type: string
+          example: '2026-07-15T00:00:00.000Z'
+          format: date-time
+        category:
+          type: object
+          example: Comida
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseDetailEntity'
+        creator:
+          $ref: '#/components/schemas/UserPublicEntity'
+      required:
+        - id
+        - creatorId
+        - tripId
+        - originalAmount
+        - originalCurrency
+        - splitType
+        - date
+        - createdAt
+        - updatedAt
+    CreateExpensePayerDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: User who paid
+          format: uuid
+        amountPaid:
+          type: number
+          example: 100
+          description: Amount paid by this user
+      required:
+        - userId
+        - amountPaid
+    CreateExpenseExactShareDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: User who owes
+          format: uuid
+        amountOwed:
+          type: number
+          example: 50
+          description: Exact amount owed (in base currency)
+      required:
+        - userId
+        - amountOwed
+    CreateExpensePercentShareDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: User who owes
+          format: uuid
+        percent:
+          type: number
+          example: 25
+          description: Percentage of total owed
+      required:
+        - userId
+        - percent
+    CreateExpenseDto:
+      type: object
+      properties:
+        description:
+          type: string
+          example: Cena en el restaurante
+        originalAmount:
+          type: number
+          example: 100
+          description: Original amount in the original currency
+        originalCurrency:
+          type: string
+          example: USD
+          description: ISO 4217 currency code
+        date:
+          type: string
+          example: '2026-07-15'
+        category:
+          type: string
+          example: Comida
+        splitType:
+          type: string
+          enum:
+            - EQUAL
+            - EXACT
+            - PERCENT
+          example: EQUAL
+        payers:
+          description: Who paid and how much. Sum of amountPaid must equal originalAmount.
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateExpensePayerDto'
+        participantIds:
+          description: 'Required for EQUAL: participants in the split.'
+          type: array
+          items:
+            type: string
+        exactShares:
+          description: 'Required for EXACT: exact amounts owed per user.'
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateExpenseExactShareDto'
+        percentShares:
+          description: 'Required for PERCENT: percentages owed per user. Must sum to 100.'
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateExpensePercentShareDto'
+        manualExchangeRate:
+          type: number
+          description: >-
+            Manual exchange rate override. Only used if originalCurrency !=
+            baseCurrency and API fails.
+          example: 1200.5
+      required:
+        - description
+        - originalAmount
+        - originalCurrency
+        - splitType
+        - payers
+    BalanceEntryEntity:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+          example: Enrique Seitz
+        balance:
+          type: string
+          example: '150.00'
+          description: >-
+            Net balance in base currency. Positive = others owe them. Negative =
+            they owe others.
+      required:
+        - userId
+        - userName
+        - balance
+    SettlementSuggestionEntity:
+      type: object
+      properties:
+        fromUserId:
+          type: string
+          format: uuid
+        fromUserName:
+          type: string
+          example: Juan Perez
+        toUserId:
+          type: string
+          format: uuid
+        toUserName:
+          type: string
+          example: Maria Lopez
+        amount:
+          type: string
+          example: '75.00'
+      required:
+        - fromUserId
+        - fromUserName
+        - toUserId
+        - toUserName
+        - amount
+    PaymentEntity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        debtorId:
+          type: string
+          format: uuid
+        creditorId:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          example: '100.00'
+        note:
+          type: object
+          example: Pago de la cena
+        date:
+          type: string
+          example: '2026-07-15T00:00:00.000Z'
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        debtor:
+          $ref: '#/components/schemas/UserPublicEntity'
+        creditor:
+          $ref: '#/components/schemas/UserPublicEntity'
+      required:
+        - id
+        - debtorId
+        - creditorId
+        - tripId
+        - amount
+        - date
+        - createdAt
+    CreatePaymentDto:
+      type: object
+      properties:
+        debtorId:
+          type: string
+          description: User who pays (debtor)
+          format: uuid
+        creditorId:
+          type: string
+          description: User who receives (creditor)
+          format: uuid
+        amount:
+          type: number
+          example: 100
+          description: Amount in trip base currency
+        note:
+          type: string
+          example: Pago de la cena
+        date:
+          type: string
+          example: '2026-07-15'
+      required:
+        - debtorId
+        - creditorId
+        - amount
+    ActivityItemEntity:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - expense
+            - payment
+            - trip
+        description:
+          type: object
+          nullable: true
+        amount:
+          type: string
+          example: '45.00'
+        tripName:
+          type: string
+        tripId:
+          type: string
+        date:
+          type: string
+          format: date-time
+          example: '2026-06-06T14:30:00.000Z'
+          description: Fecha del item de actividad en ISO 8601 UTC.
+      required:
+        - type
+        - amount
+        - tripName
+        - tripId
+        - date
+    DashboardEntity:
+      type: object
+      properties:
+        activeTrips:
+          type: number
+          example: 3
+        totalTrips:
+          type: number
+          example: 5
+        balanceTotal:
+          type: string
+          example: '0.00'
+          description: Balance total (placeholder hasta que Grupo B implemente recálculo)
+        recentActivity:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityItemEntity'
+      required:
+        - activeTrips
+        - totalTrips
+        - balanceTotal
+        - recentActivity
