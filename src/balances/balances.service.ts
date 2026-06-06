@@ -1,9 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class BalancesService {
+  private readonly logger = new Logger(BalancesService.name);
+
   constructor(private prisma: PrismaService) {}
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async recalculateAllActiveTrips() {
+    const activeTrips = await this.prisma.trip.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    this.logger.log(`Recalculating balances for ${activeTrips.length} active trips`);
+    for (const trip of activeTrips) {
+      await this.recalculateTripBalances(trip.id);
+    }
+  }
 
   async getBalances(tripId: string) {
     const participations = await this.prisma.participation.findMany({
@@ -107,33 +123,30 @@ export class BalancesService {
       where: { tripId },
     });
 
-    const balanceMap = new Map<string, number>();
+    const balanceMap = new Map<string, Decimal>();
     for (const p of participations) {
-      balanceMap.set(p.userId, 0);
+      balanceMap.set(p.userId, new Decimal(0));
     }
 
     for (const ed of expenseDetails) {
-      const current = balanceMap.get(ed.userId) ?? 0;
-      balanceMap.set(
-        ed.userId,
-        current + Number(ed.amountPaid) - Number(ed.amountOwed),
-      );
+      const current = balanceMap.get(ed.userId) ?? new Decimal(0);
+      balanceMap.set(ed.userId, current.add(ed.amountPaid).sub(ed.amountOwed));
     }
 
     for (const p of payments) {
       // Un pago SALDA deuda: el deudor (saldo negativo) sube hacia 0 al pagar,
       // y el acreedor (saldo positivo) baja hacia 0 al cobrar.
-      const debtorBal = balanceMap.get(p.debtorId) ?? 0;
-      balanceMap.set(p.debtorId, debtorBal + Number(p.amount));
+      const debtorBal = balanceMap.get(p.debtorId) ?? new Decimal(0);
+      balanceMap.set(p.debtorId, debtorBal.add(p.amount));
 
-      const creditorBal = balanceMap.get(p.creditorId) ?? 0;
-      balanceMap.set(p.creditorId, creditorBal - Number(p.amount));
+      const creditorBal = balanceMap.get(p.creditorId) ?? new Decimal(0);
+      balanceMap.set(p.creditorId, creditorBal.sub(p.amount));
     }
 
     for (const [userId, balance] of balanceMap) {
       await this.prisma.participation.update({
         where: { userId_tripId: { userId, tripId } },
-        data: { currentBalance: Math.round(balance * 100) / 100 },
+        data: { currentBalance: balance.toDecimalPlaces(2) },
       });
     }
   }

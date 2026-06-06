@@ -126,6 +126,40 @@ export class ParticipantsController {
     );
   }
 
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Abandonar el viaje',
+    description:
+      'El usuario autenticado abandona el viaje. El balance debe ser 0. El CREATOR no puede abandonar.',
+  })
+  @ApiParam({ name: 'tripId', format: 'uuid' })
+  @ApiNoContentResponse({
+    description: 'Has abandonado el viaje.',
+  })
+  @ApiBadRequestResponse({
+    description: 'El creador no puede abandonar el viaje.',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'No eres participante de este viaje.',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'Viaje no encontrado.',
+    type: ErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'No puedes abandonar porque tu balance no es 0.',
+    type: ErrorResponseDto,
+  })
+  async leave(
+    @Param('tripId', ParseUUIDPipe) tripId: string,
+    @CurrentUser() user: User,
+  ) {
+    await this.participantsService.leaveTrip(tripId, user.id);
+  }
+
   @Delete(':userId')
   @Roles(ParticipationRole.CREATOR)
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -161,39 +195,5 @@ export class ParticipantsController {
       user.id,
       targetUserId,
     );
-  }
-
-  @Delete('me')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Abandonar el viaje',
-    description:
-      'El usuario autenticado abandona el viaje. El balance debe ser 0. El CREATOR no puede abandonar.',
-  })
-  @ApiParam({ name: 'tripId', format: 'uuid' })
-  @ApiNoContentResponse({
-    description: 'Has abandonado el viaje.',
-  })
-  @ApiBadRequestResponse({
-    description: 'El creador no puede abandonar el viaje.',
-    type: ErrorResponseDto,
-  })
-  @ApiForbiddenResponse({
-    description: 'No eres participante de este viaje.',
-    type: ErrorResponseDto,
-  })
-  @ApiNotFoundResponse({
-    description: 'Viaje no encontrado.',
-    type: ErrorResponseDto,
-  })
-  @ApiConflictResponse({
-    description: 'No puedes abandonar porque tu balance no es 0.',
-    type: ErrorResponseDto,
-  })
-  async leave(
-    @Param('tripId', ParseUUIDPipe) tripId: string,
-    @CurrentUser() user: User,
-  ) {
-    await this.participantsService.leaveTrip(tripId, user.id);
   }
 }
