@@ -37,9 +37,10 @@ export class ExpenseDetailsService {
 
       const totalPaid = dto.payers.reduce((sum, p) => sum + p.amountPaid, 0);
       if (Math.abs(totalPaid - dto.originalAmount) > 0.01) {
-        throw new NotFoundException(
-          `Sum of amountPaid (${totalPaid}) must equal originalAmount (${dto.originalAmount})`,
-        );
+        throw new NotFoundException({
+          code: 'AMOUNT_PAID_MISMATCH',
+          message: `Sum of amountPaid (${totalPaid}) must equal originalAmount (${dto.originalAmount})`,
+        });
       }
 
       const trip = await this.prisma.trip.findUniqueOrThrow({
@@ -199,7 +200,10 @@ export class ExpenseDetailsService {
     });
 
     if (!expense) {
-      throw new NotFoundException('Expense not found');
+      throw new NotFoundException({
+        code: 'EXPENSE_NOT_FOUND',
+        message: 'Expense not found',
+      });
     }
 
     return expense;
@@ -211,7 +215,10 @@ export class ExpenseDetailsService {
     });
 
     if (!expense) {
-      throw new NotFoundException('Expense not found');
+      throw new NotFoundException({
+        code: 'EXPENSE_NOT_FOUND',
+        message: 'Expense not found',
+      });
     }
 
     const participation = await this.prisma.participation.findUnique({
@@ -219,16 +226,20 @@ export class ExpenseDetailsService {
     });
 
     if (!participation) {
-      throw new ForbiddenException('You are not a participant of this trip');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'You are not a participant of this trip',
+      });
     }
 
     if (
       participation.role !== ParticipationRole.CREATOR &&
       expense.creatorId !== userId
     ) {
-      throw new ForbiddenException(
-        'Only the expense creator or trip creator can delete this expense',
-      );
+      throw new ForbiddenException({
+        code: 'ONLY_EXPENSE_OR_TRIP_CREATOR',
+        message: 'Only the expense creator or trip creator can delete this expense',
+      });
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -247,11 +258,17 @@ export class ExpenseDetailsService {
     });
 
     if (!participation) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
     }
 
     if (participation.role === ParticipationRole.SUPERVISOR) {
-      throw new ForbiddenException('Supervisors cannot create expenses');
+      throw new ForbiddenException({
+        code: 'SUPERVISOR_CANNOT_CREATE_EXPENSE',
+        message: 'Supervisors cannot create expenses',
+      });
     }
   }
 
@@ -265,9 +282,15 @@ export class ExpenseDetailsService {
         where: { id: tripId },
       });
       if (!trip || trip.deletedAt) {
-        throw new NotFoundException('Trip not found');
+        throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+      });
       }
-      throw new ForbiddenException('You are not a participant of this trip');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'You are not a participant of this trip',
+      });
     }
   }
 
@@ -284,9 +307,10 @@ export class ExpenseDetailsService {
     const missing = userIds.filter((id) => !foundIds.has(id));
 
     if (missing.length > 0) {
-      throw new NotFoundException(
-        `Some users are not participants of this trip: ${missing.join(', ')}`,
-      );
+      throw new NotFoundException({
+        code: 'USERS_NOT_PARTICIPANTS',
+        message: `Some users are not participants of this trip: ${missing.join(', ')}`,
+      });
     }
 
     return participants;
@@ -397,14 +421,18 @@ export class ExpenseDetailsService {
     const owes = new Map<string, number>();
 
     if (!dto.exactShares) {
-      throw new NotFoundException('exactShares is required for EXACT split');
+      throw new NotFoundException({
+        code: 'EXACT_SHARES_REQUIRED',
+        message: 'exactShares is required for EXACT split',
+      });
     }
 
     const totalExact = dto.exactShares.reduce((sum, s) => sum + s.amountOwed, 0);
     if (Math.abs(totalExact - baseAmount) > 0.01) {
-      throw new NotFoundException(
-        `Sum of exactShares (${totalExact}) must equal baseAmount (${baseAmount})`,
-      );
+      throw new NotFoundException({
+        code: 'EXACT_SHARES_MISMATCH',
+        message: `Sum of exactShares (${totalExact}) must equal baseAmount (${baseAmount})`,
+      });
     }
 
     for (const share of dto.exactShares) {
@@ -421,14 +449,18 @@ export class ExpenseDetailsService {
     const owes = new Map<string, number>();
 
     if (!dto.percentShares) {
-      throw new NotFoundException('percentShares is required for PERCENT split');
+      throw new NotFoundException({
+        code: 'PERCENT_SHARES_REQUIRED',
+        message: 'percentShares is required for PERCENT split',
+      });
     }
 
     const totalPercent = dto.percentShares.reduce((sum, s) => sum + s.percent, 0);
     if (Math.abs(totalPercent - 100) > 0.01) {
-      throw new NotFoundException(
-        `Sum of percentShares (${totalPercent}) must equal 100`,
-      );
+      throw new NotFoundException({
+        code: 'PERCENT_SHARES_MISMATCH',
+        message: `Sum of percentShares (${totalPercent}) must equal 100`,
+      });
     }
 
     let totalAllocated = 0;

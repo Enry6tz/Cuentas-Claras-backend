@@ -37,7 +37,10 @@ export class ParticipantsService {
     await this.assertIsCreator(tripId, actorId);
 
     if (newRole === ParticipationRole.CREATOR) {
-      throw new BadRequestException('No puedes asignar el rol de creador');
+      throw new BadRequestException({
+        code: 'CANNOT_ASSIGN_CREATOR_ROLE',
+        message: 'No puedes asignar el rol de creador',
+      });
     }
 
     const targetParticipation =
@@ -45,13 +48,17 @@ export class ParticipantsService {
         where: { userId_tripId: { userId: targetUserId, tripId } },
       });
     if (!targetParticipation) {
-      throw new NotFoundException('El usuario no es participante de este viaje');
+      throw new NotFoundException({
+        code: 'USER_NOT_PARTICIPANT',
+        message: 'El usuario no es participante de este viaje',
+      });
     }
 
     if (targetParticipation.role === ParticipationRole.CREATOR) {
-      throw new BadRequestException(
-        'No puedes cambiar tu propio rol siendo el creador del viaje',
-      );
+      throw new BadRequestException({
+        code: 'CANNOT_CHANGE_OWN_CREATOR_ROLE',
+        message: 'No puedes cambiar tu propio rol siendo el creador del viaje',
+      });
     }
 
     return this.prisma.participation.update({
@@ -75,13 +82,17 @@ export class ParticipantsService {
         where: { userId_tripId: { userId: targetUserId, tripId } },
       });
     if (!targetParticipation) {
-      throw new NotFoundException('El usuario no es participante de este viaje');
+      throw new NotFoundException({
+        code: 'USER_NOT_PARTICIPANT',
+        message: 'El usuario no es participante de este viaje',
+      });
     }
 
     if (targetParticipation.role === ParticipationRole.CREATOR) {
-      throw new BadRequestException(
-        'No puedes eliminar al creador del viaje',
-      );
+      throw new BadRequestException({
+        code: 'CANNOT_REMOVE_CREATOR',
+        message: 'No puedes eliminar al creador del viaje',
+      });
     }
 
     await this.verifyBalanceIsZero(tripId, targetUserId);
@@ -99,13 +110,18 @@ export class ParticipantsService {
       where: { userId_tripId: { userId, tripId } },
     });
     if (!participation) {
-      throw new ForbiddenException('No eres participante de este viaje');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'No eres participante de este viaje',
+      });
     }
 
     if (participation.role === ParticipationRole.CREATOR) {
-      throw new BadRequestException(
-        'El creador no puede abandonar el viaje. Transfiere la propiedad primero.',
-      );
+      throw new BadRequestException({
+        code: 'CREATOR_CANNOT_LEAVE',
+        message:
+          'El creador no puede abandonar el viaje. Transfiere la propiedad primero.',
+      });
     }
 
     await this.verifyBalanceIsZero(tripId, userId);
@@ -119,9 +135,10 @@ export class ParticipantsService {
     const balance = await this.calculateBalance(tripId, userId);
 
     if (!balance.isZero()) {
-      throw new ConflictException(
-        'No se puede completar la operación porque el balance no es 0',
-      );
+      throw new ConflictException({
+        code: 'BALANCE_NOT_ZERO',
+        message: 'No se puede completar la operación porque el balance no es 0',
+      });
     }
   }
 
@@ -165,7 +182,10 @@ export class ParticipantsService {
       where: { id: tripId },
     });
     if (!trip || trip.deletedAt) {
-      throw new NotFoundException('Viaje no encontrado');
+      throw new NotFoundException({
+        code: 'TRIP_NOT_FOUND',
+        message: 'Viaje no encontrado',
+      });
     }
   }
 
@@ -175,7 +195,10 @@ export class ParticipantsService {
       select: { status: true },
     });
     if (trip?.status === TripStatus.FINALIZED) {
-      throw new BadRequestException('El viaje está finalizado');
+      throw new BadRequestException({
+        code: 'TRIP_FINISHED',
+        message: 'El viaje está finalizado',
+      });
     }
   }
 
@@ -184,12 +207,16 @@ export class ParticipantsService {
       where: { userId_tripId: { userId, tripId } },
     });
     if (!participation) {
-      throw new ForbiddenException('No eres participante de este viaje');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'No eres participante de este viaje',
+      });
     }
     if (participation.role !== ParticipationRole.CREATOR) {
-      throw new ForbiddenException(
-        'Solo el creador del viaje puede realizar esta acción',
-      );
+      throw new ForbiddenException({
+        code: 'ONLY_CREATOR_ALLOWED',
+        message: 'Solo el creador del viaje puede realizar esta acción',
+      });
     }
   }
 }

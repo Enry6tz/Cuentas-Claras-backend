@@ -18,9 +18,10 @@ export class AdminGuard implements CanActivate {
     const user = request.user;
 
     if (!user?.isAdmin) {
-      throw new ForbiddenException(
-        'Acceso denegado. Se requieren permisos de administrador.',
-      );
+      throw new ForbiddenException({
+        code: 'ADMIN_ONLY',
+        message: 'Acceso denegado. Se requieren permisos de administrador.',
+      });
     }
 
     return true;

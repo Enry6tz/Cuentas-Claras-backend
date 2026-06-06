@@ -50,7 +50,10 @@ export class TripAccessGuard implements CanActivate {
     }
 
     if (!user?.id) {
-      throw new ForbiddenException('No eres participante de este viaje');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'No eres participante de este viaje',
+      });
     }
 
     const participation = await this.prisma.participation.findUnique({
@@ -58,14 +61,18 @@ export class TripAccessGuard implements CanActivate {
     });
 
     if (!participation) {
-      throw new ForbiddenException('No eres participante de este viaje');
+      throw new ForbiddenException({
+        code: 'NOT_TRIP_PARTICIPANT',
+        message: 'No eres participante de este viaje',
+      });
     }
 
     if (requiredRoles && requiredRoles.length > 0) {
       if (!requiredRoles.includes(participation.role)) {
-        throw new ForbiddenException(
-          'No tienes permisos para realizar esta acción',
-        );
+        throw new ForbiddenException({
+          code: 'INSUFFICIENT_ROLE',
+          message: 'No tienes permisos para realizar esta acción',
+        });
       }
     }
 
