@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ExpenseSplitType, ParticipationRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrencyService } from '../currency/currency.service';
@@ -22,12 +22,15 @@ describe('ExpenseDetailsService', () => {
 
   // Devuelve el array de details (userId/amountPaid/amountOwed) que el service
   // intentó persistir en la última llamada a create().
+  // Convierte los valores Decimal a número para facilitar las aserciones.
   const capturedDetails = () =>
-    prisma.expense.create.mock.calls[0][0].data.details.create as {
-      userId: string;
-      amountPaid: number;
-      amountOwed: number;
-    }[];
+    (prisma.expense.create.mock.calls[0][0].data.details.create as any[]).map(
+      (d: any) => ({
+        userId: d.userId,
+        amountPaid: Number(d.amountPaid),
+        amountOwed: Number(d.amountOwed),
+      }),
+    );
 
   beforeEach(async () => {
     prisma = {
@@ -40,7 +43,11 @@ describe('ExpenseDetailsService', () => {
           id: 'trip-1',
           baseCurrency: 'ARS',
         }),
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'trip-1',
+          status: 'ACTIVE',
+          deletedAt: null,
+        }),
       },
       expense: {
         create: jest.fn().mockResolvedValue({ id: 'exp-1' }),
@@ -156,7 +163,7 @@ describe('ExpenseDetailsService', () => {
           payers: [{ userId: 'a', amountPaid: 90 }], // 90 != 100
           participantIds: ['a', 'b'],
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(BadRequestException);
       expect(prisma.expense.create).not.toHaveBeenCalled();
     });
   });
@@ -181,7 +188,7 @@ describe('ExpenseDetailsService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('lanza NotFound si el actor no participa del viaje', async () => {
+    it('lanza Forbidden si el actor no participa del viaje', async () => {
       prisma.participation.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -193,7 +200,7 @@ describe('ExpenseDetailsService', () => {
           payers: [{ userId: 'intruso', amountPaid: 100 }],
           participantIds: ['intruso'],
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

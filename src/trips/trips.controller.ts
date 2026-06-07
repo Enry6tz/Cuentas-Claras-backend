@@ -190,7 +190,7 @@ export class TripsController {
   @ApiOperation({
     summary: 'Actualizar un trip',
     description:
-      'Solo el `CREATOR` del trip puede actualizarlo (BR02). Permite cambiar nombre, descripcion, fechas, baseCurrency, y/o status (ACTIVE <-> FINALIZED). Todos los campos del body son opcionales.',
+      'Solo el `CREATOR` del trip puede actualizarlo (BR02). Permite cambiar nombre, descripcion, fechas, baseCurrency. Para finalizar un viaje usa POST /trips/:id/finalize.',
   })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiBody({ type: UpdateTripDto })
@@ -220,6 +220,47 @@ export class TripsController {
     @Body() dto: UpdateTripDto,
   ) {
     return this.tripsService.update(user.id, id, dto);
+  }
+
+  /**
+   * POST /trips/:id/finalize -> finalizar un viaje.
+   *
+   * Solo el CREATOR puede finalizar. Si se finaliza antes de la endDate (o no
+   * hay endDate), todos los balances deben estar en 0. Si la endDate ya pasó,
+   * se permite sin restricción (el viaje se auto-finaliza al consultarlo).
+   */
+  @Post(':id/finalize')
+  @ApiOperation({
+    summary: 'Finalizar un viaje',
+    description:
+      'Solo el CREATOR puede finalizar. Si se finaliza antes de la endDate (o no hay endDate), todos los balances deben estar en 0. Si la endDate ya pasó, el viaje se auto-finaliza automáticamente al consultarlo.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({
+    description: 'Trip finalizado.',
+    schema: {
+      properties: {
+        data: { $ref: getSchemaPath(TripEntity) },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'El viaje no está activo, o hay balances pendientes (finalización anticipada).',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'No sos CREATOR del trip.',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'No existe trip con ese id, o esta soft-deleted.',
+    type: ErrorResponseDto,
+  })
+  finalize(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.tripsService.finalize(user.id, id);
   }
 
   /**

@@ -53,14 +53,16 @@ describe('BalancesService', () => {
 
       await service.recalculateTripBalances('trip-1');
 
-      expect(prisma.participation.update).toHaveBeenCalledWith({
-        where: { userId_tripId: { userId: 'a', tripId: 'trip-1' } },
-        data: { currentBalance: 50 },
+      const calls1 = prisma.participation.update.mock.calls;
+      expect(calls1).toHaveLength(2);
+      expect(calls1[0][0].where).toEqual({
+        userId_tripId: { userId: 'a', tripId: 'trip-1' },
       });
-      expect(prisma.participation.update).toHaveBeenCalledWith({
-        where: { userId_tripId: { userId: 'b', tripId: 'trip-1' } },
-        data: { currentBalance: -50 },
+      expect(Number(calls1[0][0].data.currentBalance)).toBe(50);
+      expect(calls1[1][0].where).toEqual({
+        userId_tripId: { userId: 'b', tripId: 'trip-1' },
       });
+      expect(Number(calls1[1][0].data.currentBalance)).toBe(-50);
     });
 
     it('un pago del deudor al acreedor mueve los saldos hacia 0', async () => {
@@ -79,14 +81,16 @@ describe('BalancesService', () => {
 
       await service.recalculateTripBalances('trip-1');
 
-      expect(prisma.participation.update).toHaveBeenCalledWith({
-        where: { userId_tripId: { userId: 'a', tripId: 'trip-1' } },
-        data: { currentBalance: 0 },
+      const calls2 = prisma.participation.update.mock.calls;
+      expect(calls2).toHaveLength(2);
+      expect(calls2[0][0].where).toEqual({
+        userId_tripId: { userId: 'a', tripId: 'trip-1' },
       });
-      expect(prisma.participation.update).toHaveBeenCalledWith({
-        where: { userId_tripId: { userId: 'b', tripId: 'trip-1' } },
-        data: { currentBalance: 0 },
+      expect(Number(calls2[0][0].data.currentBalance)).toBe(0);
+      expect(calls2[1][0].where).toEqual({
+        userId_tripId: { userId: 'b', tripId: 'trip-1' },
       });
+      expect(Number(calls2[1][0].data.currentBalance)).toBe(0);
     });
   });
 
