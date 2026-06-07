@@ -215,6 +215,17 @@ export class ExpenseDetailsService {
   }
 
   async remove(userId: string, tripId: string, expenseId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { status: true },
+    });
+    if (trip?.status === TripStatus.FINALIZED) {
+      throw new BadRequestException({
+        code: 'TRIP_FINALIZED',
+        message: 'No se pueden modificar gastos en un viaje finalizado',
+      });
+    }
+
     const expense = await this.prisma.expense.findFirst({
       where: { id: expenseId, tripId, deletedAt: null },
     });

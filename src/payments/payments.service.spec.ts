@@ -24,7 +24,11 @@ describe('PaymentsService', () => {
         findMany: jest.fn(),
       },
       trip: {
-        findUnique: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'trip-1',
+          status: 'ACTIVE',
+          deletedAt: null,
+        }),
       },
       payment: {
         create: jest.fn().mockResolvedValue({ id: 'pay-1' }),

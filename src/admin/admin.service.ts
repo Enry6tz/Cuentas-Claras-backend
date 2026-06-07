@@ -62,7 +62,6 @@ export class AdminService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.baseCurrency !== undefined) data.baseCurrency = dto.baseCurrency;
-    if (dto.status !== undefined) data.status = dto.status;
     if (dto.startDate !== undefined) {
       data.startDate = dto.startDate ? new Date(dto.startDate) : null;
     }

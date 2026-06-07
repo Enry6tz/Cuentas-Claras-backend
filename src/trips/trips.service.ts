@@ -1,9 +1,12 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ParticipationRole, Prisma } from '@prisma/client';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { ParticipationRole, Prisma, TripStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
@@ -27,6 +30,8 @@ import { UpdateTripDto } from './dto/update-trip.dto';
  */
 @Injectable()
 export class TripsService {
+  private readonly logger = new Logger(TripsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -161,6 +166,14 @@ export class TripsService {
       });
     }
 
+    if (trip.status === TripStatus.ACTIVE && trip.endDate && new Date() >= trip.endDate) {
+      await this.prisma.trip.update({
+        where: { id: tripId },
+        data: { status: TripStatus.FINALIZED },
+      });
+      trip.status = TripStatus.FINALIZED;
+    }
+
     return trip;
   }
 
@@ -181,7 +194,6 @@ export class TripsService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.baseCurrency !== undefined) data.baseCurrency = dto.baseCurrency;
-    if (dto.status !== undefined) data.status = dto.status;
     if (dto.iconId !== undefined) data.iconId = dto.iconId;
     if (dto.colorId !== undefined) data.colorId = dto.colorId;
     if (dto.startDate !== undefined) {
@@ -227,6 +239,85 @@ export class TripsService {
     });
 
     // Devolvemos void/empty para que el controller responda 204 No Content.
+  }
+
+  /**
+   * FINALIZE — finalizar un viaje.
+   *
+   * Solo el CREATOR puede finalizar. Si se finaliza antes de la endDate (o no
+   * hay endDate), todos los balances deben estar en 0. Si la endDate ya pasó,
+   * se permite sin restricción de balance (el viaje se auto-finaliza).
+   */
+  async finalize(userId: string, tripId: string) {
+    await this.assertIsCreator(userId, tripId);
+
+    const trip = await this.prisma.trip.findUniqueOrThrow({
+      where: { id: tripId },
+    });
+
+    if (trip.status !== TripStatus.ACTIVE) {
+      throw new BadRequestException({
+        code: 'TRIP_NOT_ACTIVE',
+        message: 'Solo se pueden finalizar viajes activos',
+      });
+    }
+
+    const now = new Date();
+    const isEarlyFinalization = !trip.endDate || now < trip.endDate;
+    if (isEarlyFinalization) {
+      const hasDebts = await this.hasOutstandingBalance(tripId);
+      if (hasDebts) {
+        throw new BadRequestException({
+          code: 'OUTSTANDING_BALANCES',
+          message:
+            'No se puede finalizar el viaje antes de tiempo porque hay balances pendientes. Todos los balances deben estar en 0.',
+        });
+      }
+    }
+
+    return this.prisma.trip.update({
+      where: { id: tripId },
+      data: { status: TripStatus.FINALIZED },
+      include: {
+        participations: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Cron diario: auto-finaliza viajes cuya endDate ya pasó.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async autoFinalizeTripsOnEndDate() {
+    const now = new Date();
+    const result = await this.prisma.trip.updateMany({
+      where: {
+        status: TripStatus.ACTIVE,
+        endDate: { lte: now },
+        deletedAt: null,
+      },
+      data: { status: TripStatus.FINALIZED },
+    });
+
+    if (result.count > 0) {
+      this.logger.log(
+        `Auto-finalized ${result.count} trips that reached their end date`,
+      );
+    }
+  }
+
+  private async hasOutstandingBalance(tripId: string): Promise<boolean> {
+    const participations = await this.prisma.participation.findMany({
+      where: { tripId },
+      select: { currentBalance: true },
+    });
+    return participations.some((p) => Number(p.currentBalance) !== 0);
   }
 
   /**

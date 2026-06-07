@@ -151,6 +151,17 @@ export class PaymentsService {
   }
 
   async remove(userId: string, tripId: string, paymentId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { status: true },
+    });
+    if (trip?.status === TripStatus.FINALIZED) {
+      throw new BadRequestException({
+        code: 'TRIP_FINALIZED',
+        message: 'No se pueden eliminar pagos en un viaje finalizado',
+      });
+    }
+
     await this.assertIsParticipant(userId, tripId);
 
     const payment = await this.prisma.payment.findFirst({
@@ -192,7 +203,14 @@ export class PaymentsService {
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip || trip.deletedAt) throw new NotFoundException('Trip not found');
     if (trip.status === TripStatus.FINALIZED) {
-      throw new BadRequestException('No se pueden registrar pagos en un viaje finalizado');
+      const hasDebts = await this.hasOutstandingBalance(tripId);
+      if (!hasDebts) {
+        throw new BadRequestException({
+          code: 'ALL_BALANCES_SETTLED',
+          message:
+            'No se pueden registrar pagos en un viaje finalizado porque todos los balances ya están saldados',
+        });
+      }
     }
 
     const participation = await this.prisma.participation.findUnique({
@@ -212,6 +230,14 @@ export class PaymentsService {
         message: 'Supervisors cannot create payments',
       });
     }
+  }
+
+  private async hasOutstandingBalance(tripId: string): Promise<boolean> {
+    const participations = await this.prisma.participation.findMany({
+      where: { tripId },
+      select: { currentBalance: true },
+    });
+    return participations.some((p) => Number(p.currentBalance) !== 0);
   }
 
   private async assertIsParticipant(userId: string, tripId: string) {

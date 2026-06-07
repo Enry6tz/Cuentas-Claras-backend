@@ -1,6 +1,4 @@
-import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsEnum, IsOptional } from 'class-validator';
-import { TripStatus } from '@prisma/client';
+import { PartialType } from '@nestjs/swagger';
 import { CreateTripDto } from './create-trip.dto';
 
 /**
@@ -8,15 +6,6 @@ import { CreateTripDto } from './create-trip.dto';
  * y los marca como opcionales. Asi para un PATCH el cliente puede mandar
  * solo los campos que quiere modificar (por ejemplo, solo `name`).
  *
- * Ademas agregamos `status` que NO esta en el create (un trip nace siempre
- * en ACTIVE) pero si puede actualizarse (ej. cerrarlo a FINALIZED).
+ * Para finalizar un viaje usa POST /trips/:id/finalize en lugar de PATCH.
  */
-export class UpdateTripDto extends PartialType(CreateTripDto) {
-  @ApiPropertyOptional({
-    enum: TripStatus,
-    description: 'ACTIVE = acepta gastos/pagos. FINALIZED = solo lectura.',
-  })
-  @IsOptional()
-  @IsEnum(TripStatus)
-  status?: TripStatus;
-}
+export class UpdateTripDto extends PartialType(CreateTripDto) {}
