@@ -258,8 +258,8 @@ paths:
     patch:
       description: >-
         Solo el `CREATOR` del trip puede actualizarlo (BR02). Permite cambiar
-        nombre, descripcion, fechas, baseCurrency, y/o status (ACTIVE <->
-        FINALIZED). Todos los campos del body son opcionales.
+        nombre, descripcion, fechas, baseCurrency. Para finalizar un viaje usa
+        POST /trips/:id/finalize.
       operationId: TripsController_update
       parameters:
         - name: id
@@ -355,6 +355,60 @@ paths:
       security:
         - bearer: []
       summary: Eliminar (soft delete) un trip
+      tags:
+        - Trips
+  /trips/{id}/finalize:
+    post:
+      description: >-
+        Solo el CREATOR puede finalizar. Si se finaliza antes de la endDate (o
+        no hay endDate), todos los balances deben estar en 0. Si la endDate ya
+        pasó, el viaje se auto-finaliza automáticamente al consultarlo.
+      operationId: TripsController_finalize
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: Trip finalizado.
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TripEntity'
+        '400':
+          description: >-
+            El viaje no está activo, o hay balances pendientes (finalización
+            anticipada).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '401':
+          description: Falta JWT, esta vencido, o es invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '403':
+          description: No sos CREATOR del trip.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+        '404':
+          description: No existe trip con ese id, o esta soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponseDto'
+      security:
+        - bearer: []
+      summary: Finalizar un viaje
       tags:
         - Trips
   /trips/{tripId}/participants:
@@ -2036,12 +2090,6 @@ components:
           minimum: 1
           maximum: 30
           description: Id del color (1..30)
-        status:
-          type: string
-          enum:
-            - ACTIVE
-            - FINALIZED
-          description: ACTIVE = acepta gastos/pagos. FINALIZED = solo lectura.
     ParticipantEntity:
       type: object
       properties:
@@ -2353,7 +2401,6 @@ components:
             baseCurrency and API fails.
           example: 1200.5
       required:
-        - description
         - originalAmount
         - originalCurrency
         - splitType
