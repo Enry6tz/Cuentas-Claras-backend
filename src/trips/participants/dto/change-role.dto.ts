@@ -4,7 +4,7 @@ import { ParticipationRole } from '@prisma/client';
 
 export class ChangeRoleDto {
   @ApiProperty({
-    enum: ParticipationRole,
+    enum: [ParticipationRole.SUPERVISOR, ParticipationRole.MEMBER],
     description: 'Nuevo rol (SUPERVISOR o MEMBER)',
   })
   @IsEnum(ParticipationRole)

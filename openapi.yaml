@@ -1889,7 +1889,7 @@ components:
           type: string
           example: enrique@example.com
         avatarUrl:
-          type: object
+          type: string
           example: https://img.clerk.com/abc123.jpeg
           nullable: true
       required:
@@ -1957,16 +1957,16 @@ components:
           type: string
           example: Bariloche 2026
         description:
-          type: object
+          type: string
           example: Semana en Bariloche con los chicos
           nullable: true
         startDate:
-          type: object
+          type: string
           example: '2026-07-15'
           format: date
           nullable: true
         endDate:
-          type: object
+          type: string
           example: '2026-07-22'
           format: date
           nullable: true
@@ -1981,12 +1981,12 @@ components:
             - FINALIZED
           example: ACTIVE
         iconId:
-          type: object
+          type: number
           example: 1
           nullable: true
           description: Id del emoji (1..30)
         colorId:
-          type: object
+          type: number
           example: 1
           nullable: true
           description: Id del color (1..30)
@@ -1997,7 +1997,7 @@ components:
           type: string
           format: date-time
         deletedAt:
-          type: object
+          type: string
           format: date-time
           nullable: true
         participations:
@@ -2135,7 +2135,6 @@ components:
         role:
           type: string
           enum:
-            - CREATOR
             - SUPERVISOR
             - MEMBER
           description: Nuevo rol (SUPERVISOR o MEMBER)
@@ -2176,7 +2175,7 @@ components:
           example: '2026-06-05T18:42:00.000Z'
           format: date-time
         respondedAt:
-          type: object
+          type: string
           format: date-time
           nullable: true
         inviter:
@@ -2204,7 +2203,6 @@ components:
         role:
           type: string
           enum:
-            - CREATOR
             - SUPERVISOR
             - MEMBER
           description: Rol que tendrá la persona en el viaje (MEMBER o SUPERVISOR)
@@ -2253,7 +2251,7 @@ components:
           type: string
           format: uuid
         description:
-          type: object
+          type: string
           example: Cena en el restaurante
         originalAmount:
           type: string
@@ -2262,11 +2260,11 @@ components:
           type: string
           example: USD
         exchangeRate:
-          type: object
+          type: string
           example: '1200.50'
           description: Snapshot exchange rate
         baseAmount:
-          type: object
+          type: string
           example: '120050.00'
           description: Converted amount in base currency
         splitType:
@@ -2281,7 +2279,7 @@ components:
           example: '2026-07-15T00:00:00.000Z'
           format: date-time
         category:
-          type: object
+          type: string
           example: Comida
         createdAt:
           type: string
@@ -2467,7 +2465,7 @@ components:
           type: string
           example: '100.00'
         note:
-          type: object
+          type: string
           example: Pago de la cena
         date:
           type: string
@@ -2523,7 +2521,7 @@ components:
             - payment
             - trip
         description:
-          type: object
+          type: string
           nullable: true
         amount:
           type: string

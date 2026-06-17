@@ -32,6 +32,8 @@ erDiagram
         date endDate
         string baseCurrency
         enum status
+        int iconId "1..30, id del emoji"
+        int colorId "1..30, id del color"
         datetime createdAt
         datetime updatedAt
         datetime deletedAt
@@ -123,6 +125,8 @@ Representa un viaje donde se comparten gastos.
 | endDate | Date | - | - | Fecha de fin |
 | baseCurrency | String | - | NOT NULL | Moneda base del viaje |
 | status | TripStatus | ACTIVE | NOT NULL | Estado: ACTIVE \| FINALIZED |
+| iconId | Int | - | - | Id del emoji identificador del viaje (1–30) |
+| colorId | Int | - | - | Id del color identificador del viaje (1–30) |
 | createdAt | DateTime | NOW() | NOT NULL | Fecha de creación |
 | updatedAt | DateTime | NOW() | NOT NULL | Fecha de última actualización |
 | deletedAt | DateTime | - | INDEX | Soft delete |
@@ -326,10 +330,10 @@ Sin `currentBalance` cacheado, cada consulta de saldo requeriría:
 - Experiencia de usuario - balances instantáneos
 
 **Solución implementada:**
-Este campo se actualiza mediante:
-- Triggers en la base de datos cuando se crea/modifica `ExpenseDetail`
-- Triggers cuando se crea `Payment`
-- Recálculo completo en operaciones batch críticas (liquidación de viaje)
+Este campo se actualiza mediante lógica de aplicación en `BalancesService` (NestJS):
+- `ExpenseDetailsService` y `PaymentsService` invocan `BalancesService.recalculateTripBalances()` inmediatamente después de cada escritura (creación o soft-delete de gasto/pago).
+- `BalancesService` recalcula el saldo de cada participante agregando `ExpenseDetail.amountOwed`, `ExpenseDetail.amountPaid`, y los pagos (`Payment.amount`) del viaje, y persiste el resultado en `Participation.currentBalance`.
+- Este reemplazo del enfoque original de triggers de base de datos (planeado en la Entrega 3) se realizó para mantener la lógica de negocio centralizada en el backend NestJS y facilitar el testing unitario.
 
 ---
 

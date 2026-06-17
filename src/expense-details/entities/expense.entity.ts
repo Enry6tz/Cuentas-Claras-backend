@@ -13,7 +13,7 @@ export class ExpenseEntity {
   @ApiProperty({ format: 'uuid' })
   tripId!: string;
 
-  @ApiPropertyOptional({ example: 'Cena en el restaurante' })
+  @ApiPropertyOptional({ type: String, example: 'Cena en el restaurante' })
   description!: string | null;
 
   @ApiProperty({ example: '100.00' })
@@ -22,10 +22,10 @@ export class ExpenseEntity {
   @ApiProperty({ example: 'USD' })
   originalCurrency!: string;
 
-  @ApiPropertyOptional({ example: '1200.50', description: 'Snapshot exchange rate' })
+  @ApiPropertyOptional({ type: String, example: '1200.50', description: 'Snapshot exchange rate' })
   exchangeRate!: string | null;
 
-  @ApiPropertyOptional({ example: '120050.00', description: 'Converted amount in base currency' })
+  @ApiPropertyOptional({ type: String, example: '120050.00', description: 'Converted amount in base currency' })
   baseAmount!: string | null;
 
   @ApiProperty({ enum: ExpenseSplitType, example: ExpenseSplitType.EQUAL })
@@ -34,7 +34,7 @@ export class ExpenseEntity {
   @ApiProperty({ example: '2026-07-15T00:00:00.000Z', format: 'date-time' })
   date!: string;
 
-  @ApiPropertyOptional({ example: 'Comida' })
+  @ApiPropertyOptional({ type: String, example: 'Comida' })
   category!: string | null;
 
   @ApiProperty({ format: 'date-time' })

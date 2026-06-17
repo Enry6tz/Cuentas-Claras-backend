@@ -12,7 +12,7 @@ export class CreateInvitationDto {
   userId: string;
 
   @ApiProperty({
-    enum: ParticipationRole,
+    enum: [ParticipationRole.SUPERVISOR, ParticipationRole.MEMBER],
     description: 'Rol que tendrá la persona en el viaje (MEMBER o SUPERVISOR)',
     example: ParticipationRole.MEMBER,
   })

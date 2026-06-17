@@ -31,6 +31,7 @@ export class UserPublicEntity {
   email!: string;
 
   @ApiProperty({
+    type: String,
     example: 'https://img.clerk.com/abc123.jpeg',
     nullable: true,
     required: false,
@@ -82,17 +83,18 @@ export class TripEntity {
   @ApiProperty({ example: 'Bariloche 2026' })
   name!: string;
 
-  @ApiProperty({ example: 'Semana en Bariloche con los chicos', nullable: true })
+  @ApiProperty({ type: String, example: 'Semana en Bariloche con los chicos', nullable: true })
   description!: string | null;
 
   @ApiProperty({
+    type: String,
     example: '2026-07-15',
     format: 'date',
     nullable: true,
   })
   startDate!: string | null;
 
-  @ApiProperty({ example: '2026-07-22', format: 'date', nullable: true })
+  @ApiProperty({ type: String, example: '2026-07-22', format: 'date', nullable: true })
   endDate!: string | null;
 
   @ApiProperty({ example: 'ARS', description: 'ISO 4217 currency code' })
@@ -101,10 +103,10 @@ export class TripEntity {
   @ApiProperty({ enum: TripStatus, example: TripStatus.ACTIVE })
   status!: TripStatus;
 
-  @ApiProperty({ example: 1, nullable: true, description: 'Id del emoji (1..30)' })
+  @ApiProperty({ type: Number, example: 1, nullable: true, description: 'Id del emoji (1..30)' })
   iconId!: number | null;
 
-  @ApiProperty({ example: 1, nullable: true, description: 'Id del color (1..30)' })
+  @ApiProperty({ type: Number, example: 1, nullable: true, description: 'Id del color (1..30)' })
   colorId!: number | null;
 
   @ApiProperty({ format: 'date-time' })
@@ -113,7 +115,7 @@ export class TripEntity {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 
-  @ApiProperty({ format: 'date-time', nullable: true })
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
   deletedAt!: string | null;
 
   // Estas relaciones aparecen segun el endpoint:

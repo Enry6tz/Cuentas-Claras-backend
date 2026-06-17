@@ -10,30 +10,35 @@ Su objetivo principal es centralizar la gestión financiera de los viajes, permi
 ```mermaid
 graph LR
     subgraph USUARIO["👤 USUARIO"]
-        Supervisor["Supervisor"]
-        Miembro["Miembro"]
-        Administrador["Administrador"]
+        AdminSistema["Admin del Sistema"]
+        Creador["Creador del Viaje (CREATOR)"]
+        Supervisor["Supervisor (SUPERVISOR)"]
+        Miembro["Miembro (MEMBER)"]
     end
 
     Sistema["💲 Sistema\nCuentas Claras"]
     ExchangeAPI["Exchange Rate\nAPI"]
     Clerk["Clerk Identity\nProvider"]
 
+    AdminSistema -->|"gestiona todos los\nviajes globalmente"| Sistema
+    Creador -->|"crea viajes, invita,\nfinaliza, asigna roles"| Sistema
     Supervisor -->|"visualiza gastos\ny balances"| Sistema
     Miembro -->|"registra gastos,\nconsulta balances"| Sistema
-    Administrador -->|"gestiona viajes\ny participantes"| Sistema
 
     Sistema -->|"obtención de tasas\nde cambio"| ExchangeAPI
     Sistema -->|"valida JWT /\nrecibe webhooks"| Clerk
 ```
 
-El sistema identifica 5 entidades principales que interactúan con él:
+El sistema identifica 6 entidades principales que interactúan con él:
 
 ### Usuarios
 
-- **Supervisor:** Un perfil con permisos de lectura. Su interacción principal es la **visualización de gastos y balances**, probablemente para un control o auditoría sin intervenir en la carga de datos.
-- **Miembro:** Es el usuario activo estándar. Sus funciones principales son **registrar gastos** realizados durante el viaje y **consultar balances** (quién debe a quién y cuánto).
-- **Administrador:** El encargado de la configuración logística. Su rol es **gestionar los viajes y los participantes**, dar de alta o baja a miembros y definir los parámetros del grupo.
+El modelo de roles tiene dos niveles: **global** (Admin del sistema) y **por viaje** (CREATOR, SUPERVISOR, MEMBER).
+
+- **Admin del Sistema:** Usuario con permisos globales sobre todos los viajes del sistema. Accede a los endpoints `/admin/*` para listar, ver, modificar y eliminar cualquier viaje sin requerir participación. Es un rol interno, no asignable desde la UI.
+- **Creador del Viaje (CREATOR):** Rol por viaje con máximos permisos dentro del mismo. El usuario que crea un viaje se asigna automáticamente como CREATOR. Puede **invitar usuarios, finalizar el viaje, eliminar el viaje, cambiar roles** de otros participantes a SUPERVISOR o MEMBER, y **eliminar participantes**. Es un rol único por viaje (solo una persona puede ser CREATOR).
+- **Supervisor (SUPERVISOR):** Un perfil con permisos de lectura. Su interacción principal es la **visualización de gastos y balances**, para un control o auditoría sin intervenir en la carga de datos.
+- **Miembro (MEMBER):** Es el usuario activo estándar. Sus funciones principales son **registrar gastos** realizados durante el viaje y **consultar balances** (quién debe a quién y cuánto). Es el rol por defecto al aceptar una invitación.
 
 ### Sistemas Externos
 
@@ -49,13 +54,13 @@ graph LR
     Usuario["👤 Usuario"]
 
     subgraph SISTEMA["SISTEMA DE GASTOS"]
-        subgraph WEB["WEB APPLICATION"]
-            Pagina["Página de\nAplicación"]
-            React["React"]
+        subgraph WEB["WEB APPLICATION (Next.js)"]
+            React["React UI\n(Client-side)"]
+            BFF["BFF Liviano\n(Next.js API Routes)"]
         end
 
         subgraph BACKEND["BACKEND"]
-            NestJS["NestJS"]
+            NestJS["NestJS\n(API REST)"]
         end
 
         subgraph DATABASE["DATABASE"]
@@ -67,24 +72,26 @@ graph LR
     ExchangeAPI["Exchange Rate\nAPI"]
 
     Usuario -->|"usa via browser"| WEB
-    WEB -->|"JSON/HTTPS"| NestJS
+    React -->|"fetch /api/v1/*"| BFF
+    BFF -->|"JSON/HTTPS"| NestJS
     NestJS -->|"lee y escribe"| BaseDatos
     NestJS -->|"obtiene tasas\nde cambio"| ExchangeAPI
-    WEB -->|"autenticacion"| ClerkGuard
+    BFF -->|"autenticacion"| ClerkGuard
     NestJS -->|"autenticacion"| ClerkGuard
 ```
 
-### Web Application (Frontend)
+### Web Application (Frontend — Next.js)
 
-- React
-- **Responsabilidad:** Es el contenedor con el que el usuario interactúa directamente a través de un navegador. Se encarga de renderizar la interfaz, gestionar el estado local y enviar peticiones de red.
-- **Flujo Externo:** Se conecta con **ClerkGuard** para manejar el inicio de sesión y la seguridad de la sesión del usuario antes de permitir el acceso a las funcionalidades del sistema.
+- React UI (client-side) + BFF Liviano (Next.js API Routes, server-side)
+- **Responsabilidad:** Es el contenedor con el que el usuario interactúa directamente a través de un navegador. Se encarga de renderizar la interfaz, gestionar el estado local y enviar peticiones de red al BFF.
+- **Arquitectura interna:** La aplicación Next.js se divide en dos capas: (1) **React UI** — renderiza componentes en el navegador y se comunica con el BFF mediante fetch a `/api/v1/*`; (2) **BFF Liviano (Backend for Frontend)** — API Routes de Next.js que actúan como intermediario: normalizan respuestas, adaptan errores, gestionan tokens de autenticación, y reenvían las peticiones al backend NestJS. El BFF no contiene lógica de negocio propia.
+- **Flujo Externo:** La **React UI** se conecta con **ClerkGuard** para manejar el inicio de sesión. El **BFF** también se conecta con ClerkGuard para validar sesiones al reenviar peticiones al backend.
 
-### Backend (Servidor de Aplicación)
+### Backend (Servidor de Aplicación — NestJS)
 
 - NestJS
-- Centralizamos la entrada de solicitudes, manejos de ruteo, y aplicación de políticas de seguridad.
-- **Comunicación:** Utilizamos **JSON/HTTPS** que garantiza interoperabilidad y facilidad de depuración.
+- Centralizamos la entrada de solicitudes (provenientes del BFF), manejos de ruteo, y aplicación de políticas de seguridad.
+- **Comunicación:** El BFF se comunica con NestJS mediante **JSON/HTTPS**, lo que garantiza interoperabilidad y facilidad de depuración.
 
 ### Database (Persistencia)
 
@@ -196,8 +203,11 @@ La lógica interna está separada en responsabilidades claras utilizando el patr
 
 ### Flujo de Datos Principal
 
-1. La **Aplicación Web** realiza una petición HTTPS que es interceptada por el **ClerkAuthGuard** para verificar la autenticación.
-2. Si es válida, la petición llega al **Controlador** correspondiente (ej. *Expense Controller*).
-3. El controlador inyecta y llama al **Servicio** de negocio asociado (*Expense Service*).
-4. Si la operación requiere datos externos (como el tipo de cambio), el servicio se apoya en servicios auxiliares (*Currency Service → Exchange Rate API*).
-5. Finalmente, los servicios utilizan el **PrismaService** para leer o escribir la información definitiva en la **Base de Datos**.
+1. La **React UI** envía una petición fetch al **BFF** (Next.js API Route, prefijo `/api/v1/...`).
+2. El **BFF** procesa la petición: agrega headers de autenticación (JWT de Clerk), normaliza parámetros, y la reenvía al backend NestJS.
+3. El backend NestJS recibe la petición, el **ClerkAuthGuard** verifica la autenticación.
+4. Si es válida, la petición llega al **Controlador** correspondiente (ej. *Expense Controller*).
+5. El controlador inyecta y llama al **Servicio** de negocio asociado (*Expense Service*).
+6. Si la operación requiere datos externos (como el tipo de cambio), el servicio se apoya en servicios auxiliares (*Currency Service → Exchange Rate API*).
+7. Finalmente, los servicios utilizan el **PrismaService** para leer o escribir la información definitiva en la **Base de Datos**.
+8. La respuesta viaja de vuelta: NestJS → BFF → React UI. El BFF puede adaptar el formato de la respuesta o los errores antes de entregarlos al frontend.

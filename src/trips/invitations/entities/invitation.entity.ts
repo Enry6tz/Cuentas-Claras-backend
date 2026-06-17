@@ -24,7 +24,7 @@ export class InvitationEntity {
   @ApiProperty({ example: '2026-06-05T18:42:00.000Z', format: 'date-time' })
   createdAt: string;
 
-  @ApiProperty({ format: 'date-time', nullable: true })
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
   respondedAt: string | null;
 
   // Presentes según el endpoint (include de relaciones).

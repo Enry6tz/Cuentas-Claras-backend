@@ -192,7 +192,7 @@ Es el contexto o contenedor donde ocurren los gastos compartidos.
 
 ## Reglas de negocio
 
-**RN01** - Los balances se calculan en batch al seleccionar mostrar la preview o al finalizar el viaje.
+**RN01** - Los balances se recalculan sincrónicamente en cada escritura de gasto o pago (creación y soft-delete), garantizando que el saldo de cada participante esté siempre actualizado. Este diseño reemplazó el enfoque original de recálculo batch on-demand (planeado en la primera iteración) para ofrecer una experiencia de usuario más inmediata.
 
 **RN02** - Solo el administrador del viaje puede cerrarlo, eliminar o agregar participantes.
 

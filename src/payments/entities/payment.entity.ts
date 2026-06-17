@@ -17,7 +17,7 @@ export class PaymentEntity {
   @ApiProperty({ example: '100.00' })
   amount!: string;
 
-  @ApiPropertyOptional({ example: 'Pago de la cena' })
+  @ApiPropertyOptional({ type: String, example: 'Pago de la cena' })
   note!: string | null;
 
   @ApiProperty({ example: '2026-07-15T00:00:00.000Z', format: 'date-time' })

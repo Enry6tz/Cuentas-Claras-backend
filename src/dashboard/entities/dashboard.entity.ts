@@ -4,7 +4,7 @@ export class ActivityItemEntity {
   @ApiProperty({ enum: ['expense', 'payment', 'trip'] })
   type: string;
 
-  @ApiProperty({ nullable: true, required: false })
+  @ApiProperty({ type: String, nullable: true, required: false })
   description: string | null;
 
   @ApiProperty({ example: '45.00' })
