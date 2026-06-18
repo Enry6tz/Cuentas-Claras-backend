@@ -31,8 +31,14 @@ export class DashboardEntity {
   @ApiProperty({ example: 5 })
   totalTrips: number;
 
-  @ApiProperty({ example: '0.00', description: 'Balance total (placeholder hasta que Grupo B implemente recálculo)' })
+  @ApiProperty({ example: '0.00', description: 'Balance neto del usuario en todos sus viajes (suma de currentBalance)' })
   balanceTotal: string;
+
+  @ApiProperty({ example: '0.00', description: 'Total gastado por el usuario (suma de amountPaid en todos sus viajes)' })
+  totalGastado: string;
+
+  @ApiProperty({ example: '0.00', description: 'Total recibido por el usuario via pagos (suma de pagos como acreedor)' })
+  totalEnPagos: string;
 
   @ApiProperty({ type: [ActivityItemEntity] })
   recentActivity: ActivityItemEntity[];

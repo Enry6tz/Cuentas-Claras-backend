@@ -44,6 +44,12 @@ describe('DashboardService', () => {
       expense: {
         findMany: jest.fn().mockResolvedValue(mockExpenses),
       },
+      expenseDetail: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amountPaid: null } }),
+      },
+      payment: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+      },
       participation: {
         findMany: jest.fn().mockResolvedValue([]),
       },
@@ -71,6 +77,8 @@ describe('DashboardService', () => {
       expect(result.activeTrips).toBe(1);
       expect(result.totalTrips).toBe(2);
       expect(result.balanceTotal).toBe('0');
+      expect(result.totalGastado).toBe('0');
+      expect(result.totalEnPagos).toBe('0');
       expect(result.recentActivity).toHaveLength(1);
       expect(result.recentActivity[0].type).toBe('expense');
       expect(result.recentActivity[0].tripName).toBe('Active Trip');

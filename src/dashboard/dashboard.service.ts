@@ -42,10 +42,44 @@ export class DashboardService {
       .toDecimalPlaces(2)
       .toString();
 
+    const expenseAgg = await this.prisma.expenseDetail.aggregate({
+      _sum: { amountPaid: true },
+      where: {
+        userId,
+        expense: {
+          deletedAt: null,
+          trip: {
+            deletedAt: null,
+            participations: { some: { userId } },
+          },
+        },
+      },
+    });
+    const totalGastado = (expenseAgg._sum.amountPaid ?? new Decimal(0))
+      .toDecimalPlaces(2)
+      .toString();
+
+    const paymentAgg = await this.prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: {
+        creditorId: userId,
+        deletedAt: null,
+        trip: {
+          deletedAt: null,
+          participations: { some: { userId } },
+        },
+      },
+    });
+    const totalEnPagos = (paymentAgg._sum.amount ?? new Decimal(0))
+      .toDecimalPlaces(2)
+      .toString();
+
     return {
       activeTrips: activeTrips.length,
       totalTrips,
       balanceTotal,
+      totalGastado,
+      totalEnPagos,
       recentActivity,
     };
   }
